@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "npx next dev",
+    "gen:apple-secret": "node scripts/generate-apple-client-secret.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -31,6 +32,8 @@
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.23.8",
     "zustand": "^4.5.4"
+  ,
+    "jose": "^4.16.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
