@@ -1,12 +1,12 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import { NextAuthOptions } from "next-auth";
+import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/db";
 import { compare } from "bcryptjs";
 import { UserType } from "@prisma/client";
 
-export const authOptions: NextAuthOptions = {
+export const authOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     GoogleProvider({
@@ -24,56 +24,48 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Please enter your email and password.");
         }
 
+        const email = credentials.email as string;
+        const password = credentials.password as string;
+
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email },
         });
 
-        if (!user || !user.password) {
-          throw new Error("No user found with this email or password.");
+        if (!user) {
+          throw new Error("No user found with this email.");
         }
 
-        const isValidPassword = await compare(credentials.password, user.password);
+        const passwordMatch = await compare(password, user.password || "");
 
-        if (!isValidPassword) {
-          throw new Error("Invalid email or password.");
+        if (!passwordMatch) {
+          throw new Error("Invalid password.");
         }
 
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          image: user.image,
-          userType: user.userType, // Include userType in the session
-        };
+        return user;
       },
     }),
   ],
-  session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
-  jwt: {
-    secret: process.env.NEXTAUTH_SECRET,
-  },
   pages: {
     signIn: "/login",
-    error: "/login", // Redirect to login page on error
+    error: "/login",
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user }: any) {
       if (user) {
         token.id = user.id;
-        token.userType = (user as any).userType; // Add userType to JWT
+        token.userType = (user as any).userType;
       }
       return token;
     },
-    async session({ session, token }) {
+    async session({ session, token }: any) {
       if (token) {
-        session.user.id = token.id as string;
-        session.user.userType = token.userType as UserType; // Add userType to session
+        (session.user as any).id = token.id;
+        (session.user as any).userType = token.userType;
       }
       return session;
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
+
+export const { auth, handlers, signIn, signOut } = NextAuth(authOptions);

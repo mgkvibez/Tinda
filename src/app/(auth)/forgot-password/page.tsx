@@ -9,7 +9,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useState } from "react";
-// import { toast } from "react-hot-toast"; // Assuming react-hot-toast will be added later
 
 const forgotPasswordSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -33,19 +32,13 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
     setMessage("");
     try {
-      // In a real application, you would send an API request here
-      // to trigger a password reset email.
-      // For now, this is a placeholder.
       console.log("Password reset requested for:", data.email);
-      // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
       setMessage("If an account with that email exists, a password reset link has been sent.");
-      // toast.success("Password reset link sent!"); // Uncomment when toast is integrated
     } catch (error) {
       console.error("Forgot password error:", error);
       setMessage("An error occurred. Please try again.");
-      // toast.error("An error occurred. Please try again."); // Uncomment when toast is integrated
     } finally {
       setIsLoading(false);
     }
@@ -55,7 +48,7 @@ export default function ForgotPasswordPage() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
+      transition={{ duration: 0.5 }}
       className="w-full max-w-md space-y-6"
     >
       <div className="text-center">
