@@ -1,16 +1,27 @@
-import { withAuth } from "next-auth/middleware";
+import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { UserType } from "@prisma/client";
 
-export default withAuth(
-  // `withAuth` augments your `Request` with the user's token.
-  function middleware(req: NextRequest) {
-    const token = req.nextauth.token;
-    const pathname = req.nextUrl.pathname;
+export async function middleware(req: NextRequest) {
+  const session = await auth();
+  const token = (session as any)?.user;
+  const pathname = req.nextUrl.pathname;
 
-    // Redirect authenticated users from auth pages
-    if (token && (pathname.startsWith("/login") || pathname.startsWith("/signup") || pathname.startsWith("/forgot-password"))) {
+  // Allow access to auth pages without authentication
+  const publicPaths = [
+    "/login",
+    "/signup",
+    "/forgot-password",
+    "/verify-email",
+    "/api/auth",
+  ];
+
+  const isPublicPath = publicPaths.some((path) => pathname.startsWith(path));
+
+  if (isPublicPath) {
+    // Redirect authenticated users from auth pages to their dashboard
+    if (token) {
       const userType = token.userType as UserType;
       if (userType === UserType.Candidate) {
         return NextResponse.redirect(new URL("/candidate/dashboard", req.url));
@@ -19,49 +30,30 @@ export default withAuth(
       } else if (userType === UserType.Admin) {
         return NextResponse.redirect(new URL("/admin/dashboard", req.url));
       }
-      return NextResponse.redirect(new URL("/dashboard", req.url)); // Default dashboard
+      return NextResponse.redirect(new URL("/dashboard", req.url));
     }
-
-    // Protect specific routes based on user type
-    if (pathname.startsWith("/candidate") && token?.userType !== UserType.Candidate) {
-      return NextResponse.redirect(new URL("/access-denied", req.url));
-    }
-    if (pathname.startsWith("/employer") && token?.userType !== UserType.Employer) {
-      return NextResponse.redirect(new URL("/access-denied", req.url));
-    }
-    if (pathname.startsWith("/admin") && token?.userType !== UserType.Admin) {
-      return NextResponse.redirect(new URL("/access-denied", req.url));
-    }
-
-    // If no specific redirection or protection, allow the request
     return NextResponse.next();
-  },
-  {
-    callbacks: {
-      authorized: ({ token, req }) => {
-        // Allow access to auth pages, API routes, and static assets without authentication
-        if (
-          req.nextUrl.pathname.startsWith("/login") ||
-          req.nextUrl.pathname.startsWith("/signup") ||
-          req.nextUrl.pathname.startsWith("/forgot-password") ||
-          req.nextUrl.pathname.startsWith("/verify-email") ||
-          req.nextUrl.pathname.startsWith("/api/auth") ||
-          req.nextUrl.pathname.startsWith("/_next/static") ||
-          req.nextUrl.pathname.startsWith("/_next/image") ||
-          req.nextUrl.pathname.startsWith("/favicon.ico") ||
-          req.nextUrl.pathname === "/" // Allow root page
-        ) {
-          return true;
-        }
-        // Require authentication for all other routes
-        return !!token;
-      },
-    },
-    pages: {
-      signIn: "/login", // Redirect unauthenticated users to login page
-    },
   }
-);
+
+  // Protect specific routes based on user type
+  if (!token) {
+    return NextResponse.redirect(new URL("/login", req.url));
+  }
+
+  const userType = token.userType as UserType;
+
+  if (pathname.startsWith("/candidate") && userType !== UserType.Candidate) {
+    return NextResponse.redirect(new URL("/access-denied", req.url));
+  }
+  if (pathname.startsWith("/employer") && userType !== UserType.Employer) {
+    return NextResponse.redirect(new URL("/access-denied", req.url));
+  }
+  if (pathname.startsWith("/admin") && userType !== UserType.Admin) {
+    return NextResponse.redirect(new URL("/access-denied", req.url));
+  }
+
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [
