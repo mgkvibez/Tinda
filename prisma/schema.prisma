@@ -1,0 +1,407 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserType {
+  Candidate
+  Employer
+  Admin
+}
+
+enum EmploymentType {
+  FullTime
+  PartTime
+  Contract
+  Internship
+}
+
+enum WorkArrangement {
+  Remote
+  Hybrid
+  Onsite
+}
+
+enum AvailabilityStatus {
+  OpenToWork
+  NotLooking
+}
+
+enum SubscriptionTier {
+  Free
+  Pro
+  Enterprise
+}
+
+enum MatchStatus {
+  Pending
+  Matched
+  Rejected
+}
+
+enum InterviewStatus {
+  Pending
+  Accepted
+  Rejected
+  Rescheduled
+  Completed
+  Cancelled
+}
+
+enum ReportStatus {
+  Pending
+  Reviewed
+  Resolved
+  Dismissed
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String? // Hashed password for credentials provider
+  userType      UserType  @default(Candidate)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts          Account[]
+  sessions          Session[]
+  candidateProfile  CandidateProfile?
+  employerProfile   EmployerProfile?
+  swipesMade        Swipe[]      @relation("UserSwipes")
+  swipesReceived    Swipe[]      @relation("TargetSwipes")
+  matchesAsCandidate Match[]      @relation("CandidateMatches")
+  matchesAsEmployer  Match[]      @relation("EmployerMatches")
+  conversations     Conversation[]
+  messages          Message[]
+  notifications     Notification[]
+  interviews        Interview[]
+  savedJobs         SavedJob[]
+  profileViewsMade  ProfileView[] @relation("ViewerProfileViews")
+  profileViewsReceived ProfileView[] @relation("ViewedProfileViews")
+  reportsMade       Report[]     @relation("ReporterReports")
+  reportsReceived   Report[]     @relation("ReportedReports")
+  subscriptions     Subscription[]
+  payments          Payment[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model CandidateProfile {
+  id                 String             @id @default(cuid())
+  userId             String             @unique
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName           String?
+  profilePicture     String?
+  phone              String?
+  location           String?
+  bio                String?            @db.Text
+  currentRole        String?
+  yearsOfExperience  Int?
+  skills             String[]           @default([]) // Array of strings
+  education          String[]           @default([]) // Array of strings (e.g., "Degree, University, Year")
+  certifications     String[]           @default([])
+  languages          String[]           @default([])
+  resumeUrl          String?
+  portfolioUrl       String?
+  linkedinUrl        String?
+  githubUrl          String?
+  desiredSalaryMin   Int?
+  desiredSalaryMax   Int?
+  workArrangement    WorkArrangement[]  @default([])
+  preferredLocations String[]           @default([])
+  employmentType     EmploymentType[]   @default([])
+  availabilityStatus AvailabilityStatus @default(NotLooking)
+  resumeScore        Int?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  // Relationships
+  swipes             Swipe[]
+  matches            Match[]
+  savedJobs          SavedJob[]
+  interviews         Interview[]
+}
+
+model EmployerProfile {
+  id             String           @id @default(cuid())
+  userId         String           @unique
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName    String?
+  logo           String?
+  industry       String?
+  companySize    String?
+  website        String?
+  headquarters   String?
+  aboutCompany   String?          @db.Text
+  recruiterName  String?
+  recruiterPosition String?
+  recruiterEmail String?
+  recruiterPhone String?
+  subscriptionTier SubscriptionTier @default(Free)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  // Relationships
+  jobs           Job[]
+  swipes         Swipe[]
+  matches        Match[]
+  interviews     Interview[]
+}
+
+model Job {
+  id                String            @id @default(cuid())
+  employerId        String
+  employer          EmployerProfile   @relation(fields: [employerId], references: [id], onDelete: Cascade)
+  title             String
+  description       String            @db.Text
+  responsibilities  String[]          @default([])
+  requirements      String[]          @default([])
+  salaryRangeMin    Int?
+  salaryRangeMax    Int?
+  location          String?
+  workArrangement   WorkArrangement   @default(Onsite)
+  employmentType    EmploymentType    @default(FullTime)
+  experienceLevel   String?
+  skillsRequired    String[]          @default([])
+  benefits          String[]          @default([])
+  expiryDate        DateTime?
+  isPublished       Boolean           @default(false)
+  isArchived        Boolean           @default(false)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  // Relationships
+  swipes            Swipe[]
+  matches           Match[]
+  savedJobs         SavedJob[]
+}
+
+model Swipe {
+  id          String    @id @default(cuid())
+  swiperId    String // User who performed the swipe
+  swiper      User      @relation("UserSwipes", fields: [swiperId], references: [id], onDelete: Cascade)
+  targetId    String // User or Job being swiped on
+  targetUser  User?     @relation("TargetSwipes", fields: [targetId], references: [id], onDelete: Cascade) // If target is a user (employer swiping on candidate)
+  targetJobId String? // If target is a job (candidate swiping on job)
+  targetJob   Job?      @relation(fields: [targetJobId], references: [id], onDelete: Cascade)
+  isLike      Boolean // True for like/interested, false for pass
+  isSuperLike Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  @@index([swiperId])
+  @@index([targetId])
+  @@index([targetJobId])
+}
+
+model Match {
+  id           String      @id @default(cuid())
+  candidateId  String
+  candidate    User        @relation("CandidateMatches", fields: [candidateId], references: [id], onDelete: Cascade)
+  employerId   String
+  employer     User        @relation("EmployerMatches", fields: [employerId], references: [id], onDelete: Cascade)
+  jobId        String? // The job that led to the match
+  job          Job?        @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  matchDate    DateTime    @default(now())
+  conversation Conversation?
+
+  @@unique([candidateId, employerId, jobId]) // A candidate can match with an employer for a specific job only once
+  @@index([candidateId])
+  @@index([employerId])
+  @@index([jobId])
+}
+
+model Conversation {
+  id          String    @id @default(cuid())
+  matchId     String    @unique
+  match       Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  participant1Id String
+  participant1 User     @relation("ConversationParticipant1", fields: [participant1Id], references: [id], onDelete: Cascade)
+  participant2Id String
+  participant2 User     @relation("ConversationParticipant2", fields: [participant2Id], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  messages    Message[]
+
+  @@index([participant1Id])
+  @@index([participant2Id])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content        String       @db.Text
+  imageUrl       String?
+  fileUrl        String?
+  sentAt         DateTime     @default(now())
+  readAt         DateTime?
+  isRead         Boolean      @default(false)
+
+  @@index([conversationId])
+  @@index([senderId])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String // e.g., 'NEW_MATCH', 'NEW_MESSAGE', 'JOB_INVITATION'
+  message   String    @db.Text
+  link      String? // URL to navigate to
+  isRead    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Interview {
+  id           String          @id @default(cuid())
+  employerId   String
+  employer     EmployerProfile @relation(fields: [employerId], references: [id], onDelete: Cascade)
+  candidateId  String
+  candidate    CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  jobId        String
+  job          Job             @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  date         DateTime
+  time         String // e.g., "10:00 AM"
+  meetingLink  String?
+  notes        String?         @db.Text
+  status       InterviewStatus @default(Pending)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([employerId])
+  @@index([candidateId])
+  @@index([jobId])
+}
+
+model SavedJob {
+  id          String         @id @default(cuid())
+  candidateId String
+  candidate   CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  jobId       String
+  job         Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdAt   DateTime       @default(now())
+
+  @@unique([candidateId, jobId])
+  @@index([candidateId])
+  @@index([jobId])
+}
+
+model Subscription {
+  id             String           @id @default(cuid())
+  userId         String           @unique
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tier           SubscriptionTier @default(Free)
+  stripeCustomerId String?        @unique
+  stripeSubscriptionId String?    @unique
+  currentPeriodEnd DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  payments       Payment[]
+}
+
+model Payment {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptionId String?
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  stripePaymentIntentId String @unique
+  amount         Int
+  currency       String
+  status         String // e.g., 'succeeded', 'pending', 'failed'
+  createdAt      DateTime     @default(now())
+
+  @@index([userId])
+  @@index([subscriptionId])
+}
+
+model Badge {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String   @unique
+  description String   @db.Text
+  iconUrl   String?
+  earnedAt  DateTime @default(now())
+
+  @@index([userId])
+}
+
+model ProfileView {
+  id        String   @id @default(cuid())
+  viewerId  String // User who viewed the profile
+  viewer    User     @relation("ViewerProfileViews", fields: [viewerId], references: [id], onDelete: Cascade)
+  viewedId  String // User whose profile was viewed
+  viewed    User     @relation("ViewedProfileViews", fields: [viewedId], references: [id], onDelete: Cascade)
+  viewedAt  DateTime @default(now())
+
+  @@index([viewerId])
+  @@index([viewedId])
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  reporterId  String
+  reporter    User         @relation("ReporterReports", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedId  String
+  reported    User         @relation("ReportedReports", fields: [reportedId], references: [id], onDelete: Cascade)
+  reason      String       @db.Text
+  status      ReportStatus @default(Pending)
+  createdAt   DateTime     @default(now())
+  resolvedAt  DateTime?
+
+  @@index([reporterId])
+  @@index([reportedId])
+}
