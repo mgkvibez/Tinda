@@ -11,7 +11,6 @@ import * as z from "zod";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { toast } from "react-hot-toast"; // Assuming react-hot-toast will be added later
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -41,11 +40,9 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        // toast.error(result.error); // Uncomment when toast is integrated
         console.error("Login error:", result.error);
         alert(result.error); // Temporary alert
       } else {
-        // toast.success("Logged in successfully!"); // Uncomment when toast is integrated
         console.log("Login successful!");
         router.push("/"); // Redirect to home, which will then redirect to dashboard
       }
