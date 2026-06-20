@@ -15,7 +15,7 @@ const employerSchema = z.object({
   recruiterPosition: z.string().nullable().optional(),
   recruiterEmail: z.string().email().nullable().optional(),
   recruiterPhone: z.string().nullable().optional(),
-  subscriptionTier: z.string().nullable().optional(),
+  subscriptionTier: z.enum(["Free","Pro","Enterprise"]).nullable().optional(),
 });
 
 export async function GET() {
@@ -51,7 +51,7 @@ export async function PUT(request: Request) {
         recruiterPosition: data.recruiterPosition || undefined,
         recruiterEmail: data.recruiterEmail || undefined,
         recruiterPhone: data.recruiterPhone || undefined,
-        subscriptionTier: data.subscriptionTier || undefined,
+        subscriptionTier: (data.subscriptionTier as any) || undefined,
       },
       update: {
         companyName: data.companyName || undefined,
@@ -65,7 +65,7 @@ export async function PUT(request: Request) {
         recruiterPosition: data.recruiterPosition || undefined,
         recruiterEmail: data.recruiterEmail || undefined,
         recruiterPhone: data.recruiterPhone || undefined,
-        subscriptionTier: data.subscriptionTier || undefined,
+        subscriptionTier: (data.subscriptionTier as any) || undefined,
       },
     });
 
