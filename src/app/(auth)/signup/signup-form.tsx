@@ -103,7 +103,7 @@ export function SignupForm() {
       className="w-full max-w-md space-y-6"
     >
       <div className="text-center">
-        <h3 className="text-3xl font-bold text-foreground mb-2">Join MatchHire</h3>
+        <h3 className="text-3xl font-bold text-foreground mb-2">Join Tinda</h3>
         <p className="text-textSecondary">Create your account to get started.</p>
       </div>
 

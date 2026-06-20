@@ -51,9 +51,12 @@ export default function HomePage() {
         transition={{ duration: 0.8, delay: 0.2 }}
         className="relative z-10 text-center max-w-4xl px-6 py-12"
       >
-        <h1 className="text-6xl md:text-8xl font-extrabold tracking-tight leading-none text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent mb-6 drop-shadow-lg">
-          MatchHire
-        </h1>
+        <div className="flex items-center justify-center gap-4 mb-6">
+          <Image src="/tinda-logo.svg" alt="Tinda" width={96} height={96} priority />
+          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight leading-none text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent drop-shadow-lg">
+            Tinda
+          </h1>
+        </div>
         <p className="text-xl md:text-2xl text-textSecondary mb-10 max-w-2xl mx-auto leading-relaxed">
           Swipe your way to the perfect job or discover top talent.
           Revolutionizing recruitment with intelligent matching.

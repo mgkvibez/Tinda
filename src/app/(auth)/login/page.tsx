@@ -80,7 +80,7 @@ export default function LoginPage() {
     >
       <div className="text-center">
         <h3 className="text-3xl font-bold text-foreground mb-2">Welcome Back!</h3>
-        <p className="text-textSecondary">Sign in to your MatchHire account.</p>
+        <p className="text-textSecondary">Sign in to your Tinda account.</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

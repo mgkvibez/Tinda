@@ -7,19 +7,19 @@ import { AuthProvider } from "@/components/providers/auth-provider";
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "MatchHire - Swipe Your Way to the Perfect Job or Talent",
-  description: "MatchHire: The Tinder/Bumble for recruitment. Swipe, match, and chat with top talent or dream jobs.",
+  title: "Tinda - Swipe Your Way to the Perfect Job or Talent",
+  description: "Tinda: Match talent with opportunity. Swipe, match, and chat with top talent or dream jobs.",
   openGraph: {
-    title: "MatchHire",
+    title: "Tinda",
     description: "Swipe Your Way to the Perfect Job or Talent",
-    url: "https://matchhire.com", // Replace with your domain
-    siteName: "MatchHire",
+    url: "https://tinda.local", // Replace with your domain
+    siteName: "Tinda",
     images: [
       {
         url: "https://images.pexels.com/photos/3184433/pexels-photo-3184433.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2", // Placeholder image from Pexels
         width: 1200,
         height: 630,
-        alt: "MatchHire - Recruitment Platform",
+        alt: "Tinda - Recruitment Platform",
       },
     ],
     locale: "en_US",
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "MatchHire",
+    title: "Tinda",
     description: "Swipe Your Way to the Perfect Job or Talent",
     images: ["https://images.pexels.com/photos/3184433/pexels-photo-3184433.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"], // Placeholder image from Pexels
   },

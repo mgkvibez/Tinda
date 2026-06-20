@@ -19,9 +19,9 @@ export default function AuthLayout({
           transition={{ duration: 0.8, ease: "easeOut" }}
           className="relative flex-1 min-h-[200px] lg:min-h-full flex items-center justify-center p-8 bg-gradient-to-br from-primary to-accent"
         >
-          <Image
+            <Image
             src="https://images.pexels.com/photos/3184433/pexels-photo-3184433.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
-            alt="MatchHire Recruitment"
+            alt="Tinda Recruitment"
             fill
             style={{ objectFit: "cover" }}
             className="absolute inset-0 opacity-30 mix-blend-overlay"
@@ -29,9 +29,12 @@ export default function AuthLayout({
           />
           <div className="relative z-10 text-center text-white">
             <Link href="/" className="inline-block mb-6">
-              <h2 className="text-5xl font-extrabold tracking-tight leading-none drop-shadow-lg">
-                MatchHire
-              </h2>
+              <div className="flex items-center justify-center gap-4">
+                <Image src="/tinda-logo.svg" alt="Tinda" width={72} height={72} priority />
+                <h2 className="text-4xl font-extrabold tracking-tight leading-none drop-shadow-lg">
+                  Tinda
+                </h2>
+              </div>
             </Link>
             <p className="text-lg opacity-90 max-w-xs mx-auto">
               Connecting talent with opportunity, one swipe at a time.

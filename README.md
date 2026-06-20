@@ -1,4 +1,5 @@
-# MatchHire (Tinda) — Apple Sign In Setup
+
+# Tinda — Apple Sign In Setup
 
 This repository includes an Apple Sign In provider for NextAuth. Below are steps to configure Apple OAuth and a small helper script to generate the Apple client secret (a signed JWT).
 
