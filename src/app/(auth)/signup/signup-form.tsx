@@ -66,9 +66,11 @@ export function SignupForm() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Registration error:", errorData.message);
-        alert(errorData.message || "Registration failed.");
+        const errorData = await response.json().catch(() => null);
+        const fallbackText = await response.text().catch(() => "");
+        const errorMessage = errorData?.message || fallbackText || "Registration failed.";
+        console.error("Registration error:", { status: response.status, body: errorData ?? fallbackText });
+        alert(errorMessage);
         return;
       }
 
