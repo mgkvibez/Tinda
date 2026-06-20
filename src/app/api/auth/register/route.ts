@@ -2,14 +2,25 @@ import { NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { UserType } from "@prisma/client";
+import * as z from "zod";
+
+const signupSchema = z.object({
+  name: z.string().min(2),
+  email: z.string().email(),
+  password: z.string().min(8),
+  userType: z.enum(["Candidate", "Employer"]),
+});
 
 export async function POST(request: Request) {
   try {
-    const { name, email, password, userType } = await request.json();
+    const body = await request.json();
+    const { name, email, password, userType } = signupSchema.parse(body);
 
-    // Validate userType
-    if (!Object.values(UserType).includes(userType)) {
-      return NextResponse.json({ message: "Invalid user type provided." }, { status: 400 });
+    if (!process.env.DATABASE_URL) {
+      return NextResponse.json(
+        { message: "Database connection is not configured. Please set DATABASE_URL." },
+        { status: 500 }
+      );
     }
 
     // Check if user already exists
@@ -21,7 +32,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "User with this email already exists." }, { status: 409 });
     }
 
-    // Hash password
     const hashedPassword = await hash(password, 12);
 
     // Create user
@@ -57,6 +67,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "User registered successfully." }, { status: 201 });
   } catch (error) {
     console.error("Registration error:", error);
-    return NextResponse.json({ message: "Something went wrong." }, { status: 500 });
+
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ message: error.errors[0]?.message ?? "Invalid registration data." }, { status: 400 });
+    }
+
+    const message = process.env.NODE_ENV === "production"
+      ? "Something went wrong."
+      : error instanceof Error
+      ? error.message
+      : "Unknown error.";
+
+    return NextResponse.json({ message }, { status: 500 });
   }
 }
