@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { UserType } from "@prisma/client";
 import * as z from "zod";
 
 const jobSchema = z.object({
@@ -39,11 +40,18 @@ export async function PUT(
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
   try {
+    if (user.userType !== UserType.Employer) {
+      return NextResponse.json({ message: "Only employers can update jobs." }, { status: 403 });
+    }
+
+    const employerProfile = await prisma.employerProfile.findUnique({ where: { userId: user.id } });
+    if (!employerProfile) return NextResponse.json({ message: "Employer profile not found" }, { status: 404 });
+
     const body = await request.json();
     const data = jobSchema.parse(body);
 
     const job = await prisma.job.updateMany({
-      where: { id, employerId: user.id },
+      where: { id, employerId: employerProfile.id },
       data: {
         title: data.title,
         description: data.description,
@@ -85,6 +93,13 @@ export async function DELETE(
   const user = (session as any)?.user;
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-  await prisma.job.deleteMany({ where: { id, employerId: user.id } });
+  if (user.userType !== UserType.Employer) {
+    return NextResponse.json({ message: "Only employers can delete jobs." }, { status: 403 });
+  }
+
+  const employerProfile = await prisma.employerProfile.findUnique({ where: { userId: user.id } });
+  if (!employerProfile) return NextResponse.json({ message: "Employer profile not found" }, { status: 404 });
+
+  await prisma.job.deleteMany({ where: { id, employerId: employerProfile.id } });
   return NextResponse.json({ message: "Deleted" });
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { UserType } from "@prisma/client";
 import * as z from "zod";
 
 const jobSchema = z.object({
@@ -36,17 +37,20 @@ export async function POST(request: Request) {
   const session = await auth();
   const user = (session as any)?.user;
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  if (user.userType !== UserType.Employer) {
+    return NextResponse.json({ message: "Only employers can create jobs." }, { status: 403 });
+  }
 
   try {
     const body = await request.json();
     const data = jobSchema.parse(body);
 
-    const candidateUser = await prisma.user.findUnique({ where: { id: user.id } });
-    if (!candidateUser) return NextResponse.json({ message: "User not found" }, { status: 404 });
+    const employerProfile = await prisma.employerProfile.findUnique({ where: { userId: user.id } });
+    if (!employerProfile) return NextResponse.json({ message: "Employer profile not found" }, { status: 404 });
 
     const job = await prisma.job.create({
       data: {
-        employerId: user.id,
+        employerId: employerProfile.id,
         title: data.title,
         description: data.description,
         responsibilities: data.responsibilities || [],
