@@ -9,6 +9,11 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 export const metadata: Metadata = {
   title: "Tinda - Swipe Your Way to the Perfect Job or Talent",
   description: "Tinda: Match talent with opportunity. Swipe, match, and chat with top talent or dream jobs.",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
   openGraph: {
     title: "Tinda",
     description: "Swipe Your Way to the Perfect Job or Talent",
