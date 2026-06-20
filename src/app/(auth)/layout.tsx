@@ -28,14 +28,9 @@ export default function AuthLayout({
             priority
           />
           <div className="relative z-10 text-center text-white">
-            <Link href="/" className="inline-block mb-6">
-              <div className="flex items-center justify-center gap-4">
-                <Image src="/tinda-logo.svg" alt="Tinda" width={72} height={72} priority />
-                <h2 className="text-4xl font-extrabold tracking-tight leading-none drop-shadow-lg">
-                  Tinda
-                </h2>
-              </div>
-            </Link>
+            <h2 className="text-3xl font-extrabold tracking-tight leading-none mb-3">
+              Tinda
+            </h2>
             <p className="text-lg opacity-90 max-w-xs mx-auto">
               Connecting talent with opportunity, one swipe at a time.
             </p>
