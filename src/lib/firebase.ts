@@ -83,14 +83,14 @@ export interface FirestoreJob {
 }
 
 function getApp() {
-  const apps = (admin as any).apps as Array<any>;
+  const apps = getApps();
   if (!apps.length) {
     const projectId = process.env.FIREBASE_PROJECT_ID || "tinda-dev";
     const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
 
     if (privateKey && clientEmail) {
-      admin.initializeApp({
+      initializeApp({
         credential: cert({
           projectId,
           privateKey,
@@ -99,15 +99,15 @@ function getApp() {
         projectId,
       });
     } else {
-      admin.initializeApp({ projectId });
+      initializeApp({ projectId });
     }
   }
 
-  return admin.apps[0] ?? admin.initializeApp({ projectId });
+  return getApps()[0];
 }
 
 export function getDb() {
-  return getApp().firestore();
+  return getFirestore(getApp());
 }
 
 export async function getUserByEmail(email: string): Promise<FirestoreUser | null> {
