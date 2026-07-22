@@ -1,24 +1,10 @@
-import { PrismaAdapter } from "@auth/prisma-adapter";
 import NextAuth from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
-import AppleProvider from "next-auth/providers/apple";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { prisma } from "@/lib/db";
 import { compare } from "bcryptjs";
-import { UserType } from "@prisma/client";
+import { getUserByEmail, UserType } from "@/lib/firebase";
 
 export const authOptions = {
-  adapter: PrismaAdapter(prisma),
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID as string,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-    }),
-    // Apple Sign In (requires APPLE_CLIENT_ID and APPLE_CLIENT_SECRET)
-    AppleProvider({
-      clientId: process.env.APPLE_CLIENT_ID as string,
-      clientSecret: process.env.APPLE_CLIENT_SECRET as string,
-    }),
     CredentialsProvider({
       name: "Credentials",
       credentials: {
@@ -33,9 +19,7 @@ export const authOptions = {
         const email = credentials.email as string;
         const password = credentials.password as string;
 
-        const user = await prisma.user.findUnique({
-          where: { email },
-        });
+        const user = await getUserByEmail(email);
 
         if (!user) {
           throw new Error("No user found with this email.");
@@ -47,7 +31,12 @@ export const authOptions = {
           throw new Error("Invalid password.");
         }
 
-        return user;
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          userType: user.userType,
+        };
       },
     }),
   ],
@@ -59,7 +48,7 @@ export const authOptions = {
     async jwt({ token, user }: any) {
       if (user) {
         token.id = user.id;
-        token.userType = (user as any).userType;
+        token.userType = (user as any).userType ?? UserType.Candidate;
       }
       return token;
     },

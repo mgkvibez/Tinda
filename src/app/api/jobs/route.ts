@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { UserType } from "@prisma/client";
+import { createJob, getEmployerProfile, listJobs, UserType } from "@/lib/firebase";
 import * as z from "zod";
 
 const jobSchema = z.object({
@@ -23,13 +22,13 @@ const jobSchema = z.object({
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const employerId = url.searchParams.get("employerId");
-  const filter: any = {};
+  const filter: { employerId?: string } = {};
 
   if (employerId) {
     filter.employerId = employerId;
   }
 
-  const jobs = await prisma.job.findMany({ where: filter, orderBy: { createdAt: "desc" } });
+  const jobs = await listJobs(filter);
   return NextResponse.json(jobs);
 }
 
@@ -45,26 +44,29 @@ export async function POST(request: Request) {
     const body = await request.json();
     const data = jobSchema.parse(body);
 
-    const employerProfile = await prisma.employerProfile.findUnique({ where: { userId: user.id } });
+    const employerProfile = await getEmployerProfile(user.id);
     if (!employerProfile) return NextResponse.json({ message: "Employer profile not found" }, { status: 404 });
 
-    const job = await prisma.job.create({
-      data: {
-        employerId: employerProfile.id,
-        title: data.title,
-        description: data.description,
-        responsibilities: data.responsibilities || [],
-        requirements: data.requirements || [],
-        salaryRangeMin: data.salaryRangeMin || undefined,
-        salaryRangeMax: data.salaryRangeMax || undefined,
-        location: data.location || undefined,
-        workArrangement: data.workArrangement || undefined,
-        employmentType: data.employmentType || undefined,
-        experienceLevel: data.experienceLevel || undefined,
-        skillsRequired: data.skillsRequired || [],
-        benefits: data.benefits || [],
-        expiryDate: data.expiryDate ? new Date(data.expiryDate) : undefined,
-      },
+    const job = await createJob({
+      employerId: employerProfile.id,
+      title: data.title,
+      description: data.description,
+      responsibilities: data.responsibilities || [],
+      requirements: data.requirements || [],
+      salaryRangeMin: data.salaryRangeMin ?? null,
+      salaryRangeMax: data.salaryRangeMax ?? null,
+      location: data.location ?? null,
+      workArrangement: data.workArrangement ?? null,
+      employmentType: data.employmentType ?? null,
+      experienceLevel: data.experienceLevel ?? null,
+      skillsRequired: data.skillsRequired || [],
+      benefits: data.benefits || [],
+      expiryDate: data.expiryDate ? new Date(data.expiryDate).toISOString() : null,
+      companyName: employerProfile.companyName ?? null,
+      companyLogo: employerProfile.logo ?? null,
+      recruiterName: employerProfile.recruiterName ?? null,
+      isPublished: true,
+      isArchived: false,
     });
 
     return NextResponse.json(job, { status: 201 });

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { hash } from "bcryptjs";
-import { prisma } from "@/lib/db";
-import { UserType } from "@prisma/client";
+import { createUser, getUserByEmail, upsertCandidateProfile, upsertEmployerProfile, UserType } from "@/lib/firebase";
 import * as z from "zod";
 
 const signupSchema = z.object({
@@ -16,17 +15,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { name, email, password, userType } = signupSchema.parse(body);
 
-    if (!process.env.DATABASE_URL) {
-      return NextResponse.json(
-        { message: "Database connection is not configured. Please set DATABASE_URL." },
-        { status: 500 }
-      );
-    }
-
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    const existingUser = await getUserByEmail(email);
 
     if (existingUser) {
       return NextResponse.json({ message: "User with this email already exists." }, { status: 409 });
@@ -34,35 +23,18 @@ export async function POST(request: Request) {
 
     const hashedPassword = await hash(password, 12);
 
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        userType,
-      },
+    const user = await createUser({
+      name,
+      email,
+      password: hashedPassword,
+      userType: userType as UserType,
     });
 
-    // Create corresponding profile based on userType
     if (userType === UserType.Candidate) {
-      await prisma.candidateProfile.create({
-        data: {
-          userId: user.id,
-          fullName: name,
-        },
-      });
+      await upsertCandidateProfile(user.id, { fullName: name });
     } else if (userType === UserType.Employer) {
-      await prisma.employerProfile.create({
-        data: {
-          userId: user.id,
-          recruiterName: name,
-        },
-      });
+      await upsertEmployerProfile(user.id, { recruiterName: name });
     }
-
-    // In a real app, you'd send a verification email here
-    // using Resend or similar service.
 
     return NextResponse.json({ message: "User registered successfully." }, { status: 201 });
   } catch (error) {
