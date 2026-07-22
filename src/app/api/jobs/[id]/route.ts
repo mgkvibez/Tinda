@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { UserType } from "@prisma/client";
+import { deleteJob, getEmployerProfile, getJobById, updateJob, UserType } from "@/lib/firebase";
 import * as z from "zod";
 
 const jobSchema = z.object({
@@ -25,7 +24,7 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  const job = await prisma.job.findUnique({ where: { id } });
+  const job = await getJobById(id);
   if (!job) return NextResponse.json({ message: "Job not found" }, { status: 404 });
   return NextResponse.json(job);
 }
@@ -44,36 +43,33 @@ export async function PUT(
       return NextResponse.json({ message: "Only employers can update jobs." }, { status: 403 });
     }
 
-    const employerProfile = await prisma.employerProfile.findUnique({ where: { userId: user.id } });
+    const employerProfile = await getEmployerProfile(user.id);
     if (!employerProfile) return NextResponse.json({ message: "Employer profile not found" }, { status: 404 });
 
     const body = await request.json();
     const data = jobSchema.parse(body);
 
-    const job = await prisma.job.updateMany({
-      where: { id, employerId: employerProfile.id },
-      data: {
-        title: data.title,
-        description: data.description,
-        responsibilities: data.responsibilities || [],
-        requirements: data.requirements || [],
-        salaryRangeMin: data.salaryRangeMin || undefined,
-        salaryRangeMax: data.salaryRangeMax || undefined,
-        location: data.location || undefined,
-        workArrangement: data.workArrangement || undefined,
-        employmentType: data.employmentType || undefined,
-        experienceLevel: data.experienceLevel || undefined,
-        skillsRequired: data.skillsRequired || [],
-        benefits: data.benefits || [],
-        expiryDate: data.expiryDate ? new Date(data.expiryDate) : undefined,
-      },
-    });
-
-    if (job.count === 0) {
+    const existingJob = await getJobById(id);
+    if (!existingJob || existingJob.employerId !== employerProfile.id) {
       return NextResponse.json({ message: "Job not found or not owned by user" }, { status: 404 });
     }
 
-    const updatedJob = await prisma.job.findUnique({ where: { id } });
+    const updatedJob = await updateJob(id, {
+      title: data.title,
+      description: data.description,
+      responsibilities: data.responsibilities || [],
+      requirements: data.requirements || [],
+      salaryRangeMin: data.salaryRangeMin ?? null,
+      salaryRangeMax: data.salaryRangeMax ?? null,
+      location: data.location ?? null,
+      workArrangement: data.workArrangement ?? null,
+      employmentType: data.employmentType ?? null,
+      experienceLevel: data.experienceLevel ?? null,
+      skillsRequired: data.skillsRequired || [],
+      benefits: data.benefits || [],
+      expiryDate: data.expiryDate ? new Date(data.expiryDate).toISOString() : null,
+    });
+
     return NextResponse.json(updatedJob);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -97,9 +93,14 @@ export async function DELETE(
     return NextResponse.json({ message: "Only employers can delete jobs." }, { status: 403 });
   }
 
-  const employerProfile = await prisma.employerProfile.findUnique({ where: { userId: user.id } });
+  const employerProfile = await getEmployerProfile(user.id);
   if (!employerProfile) return NextResponse.json({ message: "Employer profile not found" }, { status: 404 });
 
-  await prisma.job.deleteMany({ where: { id, employerId: employerProfile.id } });
+  const existingJob = await getJobById(id);
+  if (!existingJob || existingJob.employerId !== employerProfile.id) {
+    return NextResponse.json({ message: "Job not found or not owned by user" }, { status: 404 });
+  }
+
+  await deleteJob(id);
   return NextResponse.json({ message: "Deleted" });
 }

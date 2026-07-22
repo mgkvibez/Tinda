@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { getCandidateProfile, upsertCandidateProfile } from "@/lib/firebase";
 import * as z from "zod";
 
 const candidateSchema = z.object({
@@ -28,7 +28,7 @@ export async function GET() {
   const user = (session as any)?.user;
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-  const profile = await prisma.candidateProfile.findUnique({ where: { userId: user.id } });
+  const profile = await getCandidateProfile(user.id);
   return NextResponse.json(profile ?? null);
 }
 
@@ -41,47 +41,24 @@ export async function PUT(request: Request) {
     const body = await request.json();
     const data = candidateSchema.parse(body);
 
-    const upserted = await prisma.candidateProfile.upsert({
-      where: { userId: user.id },
-      create: {
-        userId: user.id,
-        fullName: data.fullName || undefined,
-        profilePicture: data.profilePicture || undefined,
-        phone: data.phone || undefined,
-        location: data.location || undefined,
-        bio: data.bio || undefined,
-        currentRole: data.currentRole || undefined,
-        yearsOfExperience: data.yearsOfExperience || undefined,
-        skills: data.skills || [],
-        education: data.education || [],
-        certifications: data.certifications || [],
-        languages: data.languages || [],
-        resumeUrl: data.resumeUrl || undefined,
-        portfolioUrl: data.portfolioUrl || undefined,
-        linkedinUrl: data.linkedinUrl || undefined,
-        githubUrl: data.githubUrl || undefined,
-        desiredSalaryMin: data.desiredSalaryMin || undefined,
-        desiredSalaryMax: data.desiredSalaryMax || undefined,
-      },
-      update: {
-        fullName: data.fullName || undefined,
-        profilePicture: data.profilePicture || undefined,
-        phone: data.phone || undefined,
-        location: data.location || undefined,
-        bio: data.bio || undefined,
-        currentRole: data.currentRole || undefined,
-        yearsOfExperience: data.yearsOfExperience || undefined,
-        skills: data.skills || [],
-        education: data.education || [],
-        certifications: data.certifications || [],
-        languages: data.languages || [],
-        resumeUrl: data.resumeUrl || undefined,
-        portfolioUrl: data.portfolioUrl || undefined,
-        linkedinUrl: data.linkedinUrl || undefined,
-        githubUrl: data.githubUrl || undefined,
-        desiredSalaryMin: data.desiredSalaryMin || undefined,
-        desiredSalaryMax: data.desiredSalaryMax || undefined,
-      },
+    const upserted = await upsertCandidateProfile(user.id, {
+      fullName: data.fullName ?? null,
+      profilePicture: data.profilePicture ?? null,
+      phone: data.phone ?? null,
+      location: data.location ?? null,
+      bio: data.bio ?? null,
+      currentRole: data.currentRole ?? null,
+      yearsOfExperience: data.yearsOfExperience ?? null,
+      skills: data.skills || [],
+      education: data.education || [],
+      certifications: data.certifications || [],
+      languages: data.languages || [],
+      resumeUrl: data.resumeUrl ?? null,
+      portfolioUrl: data.portfolioUrl ?? null,
+      linkedinUrl: data.linkedinUrl ?? null,
+      githubUrl: data.githubUrl ?? null,
+      desiredSalaryMin: data.desiredSalaryMin ?? null,
+      desiredSalaryMax: data.desiredSalaryMax ?? null,
     });
 
     return NextResponse.json(upserted);

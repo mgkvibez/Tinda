@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { UserType } from "@prisma/client";
+import { createConversation, createMatch, getCandidateProfile, getEmployerProfile, getJobById, getUserById, listCandidateUsers, listJobs, listSwipesBySwiper, saveSwipe, updateSwipe, UserType } from "@/lib/firebase";
 import * as z from "zod";
 
 const swipeSchema = z.object({
@@ -18,36 +17,18 @@ export async function GET(request: Request) {
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
   if (user.userType === UserType.Candidate) {
-    const now = new Date();
-    const jobs = await prisma.job.findMany({
-      where: {
-        isPublished: true,
-        isArchived: false,
-        OR: [
-          { expiryDate: null },
-          { expiryDate: { gte: now } },
-        ],
-        NOT: {
-          swipes: {
-            some: {
-              swiperId: user.id,
-            },
-          },
-        },
-      },
-      include: {
-        employer: {
-          include: {
-            user: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-    });
+    const swipes = await listSwipesBySwiper(user.id);
+    const swipedJobIds = new Set(swipes.filter((swipe: any) => swipe.targetJobId).map((swipe: any) => swipe.targetJobId));
+    const jobs = await listJobs();
 
-    return NextResponse.json(
-      jobs.map((job) => ({
+    const visibleJobs = jobs
+      .filter((job: any) => {
+        if (!job.isPublished || job.isArchived) return false;
+        if (job.expiryDate && new Date(job.expiryDate) < new Date()) return false;
+        return !swipedJobIds.has(job.id);
+      })
+      .slice(0, 20)
+      .map((job: any) => ({
         id: job.id,
         title: job.title,
         description: job.description,
@@ -57,47 +38,40 @@ export async function GET(request: Request) {
         skillsRequired: job.skillsRequired,
         workArrangement: job.workArrangement,
         employmentType: job.employmentType,
-        companyName: job.employer.companyName,
-        companyLogo: job.employer.logo,
-        recruiterName: job.employer.recruiterName,
+        companyName: job.companyName,
+        companyLogo: job.companyLogo,
+        recruiterName: job.recruiterName,
         jobId: job.id,
-      }))
-    );
+      }));
+
+    return NextResponse.json(visibleJobs);
   }
 
   if (user.userType === UserType.Employer) {
-    const candidates = await prisma.user.findMany({
-      where: {
-        userType: UserType.Candidate,
-        candidateProfile: { isNot: null },
-        NOT: {
-          swipesMade: {
-            some: {
-              swiperId: user.id,
-            },
-          },
-        },
-      },
-      include: {
-        candidateProfile: true,
-      },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-    });
+    const swipes = await listSwipesBySwiper(user.id);
+    const swipedIds = new Set(swipes.map((swipe: any) => swipe.targetId));
+    const candidates = await listCandidateUsers();
 
-    return NextResponse.json(
-      candidates.map((candidate) => ({
-        id: candidate.id,
-        fullName: candidate.candidateProfile?.fullName ?? candidate.name,
-        profilePicture: candidate.candidateProfile?.profilePicture,
-        currentRole: candidate.candidateProfile?.currentRole,
-        yearsOfExperience: candidate.candidateProfile?.yearsOfExperience,
-        skills: candidate.candidateProfile?.skills,
-        education: candidate.candidateProfile?.education,
-        resumeScore: null,
-        availability: candidate.candidateProfile?.availabilityStatus ?? "NotLooking",
-      }))
-    );
+    const visibleCandidates = (await Promise.all(
+      candidates
+        .filter((candidate: any) => !swipedIds.has(candidate.id))
+        .map(async (candidate: any) => {
+          const profile = await getCandidateProfile(candidate.id);
+          return {
+            id: candidate.id,
+            fullName: profile?.fullName ?? candidate.name,
+            profilePicture: profile?.profilePicture,
+            currentRole: profile?.currentRole,
+            yearsOfExperience: profile?.yearsOfExperience,
+            skills: profile?.skills,
+            education: profile?.education,
+            resumeScore: null,
+            availability: "NotLooking",
+          };
+        })
+    )).slice(0, 20);
+
+    return NextResponse.json(visibleCandidates);
   }
 
   return NextResponse.json({ message: "Unsupported user type" }, { status: 400 });
@@ -112,121 +86,64 @@ export async function POST(request: Request) {
     const body = await request.json();
     const data = swipeSchema.parse(body);
 
-    const existingSwipe = await prisma.swipe.findFirst({
-      where: {
-        swiperId: user.id,
-        targetId: data.targetId,
-        targetJobId: data.targetJobId ?? undefined,
-      },
-    });
+    const swipes = await listSwipesBySwiper(user.id);
+    const existingSwipe = swipes.find((swipe: any) => swipe.targetId === data.targetId && (swipe.targetJobId ?? null) === (data.targetJobId ?? null));
 
     const swipeData = {
       swiperId: user.id,
       targetId: data.targetId,
-      targetJobId: data.targetJobId ?? undefined,
+      targetJobId: data.targetJobId ?? null,
       isLike: data.isLike,
       isSuperLike: data.isSuperLike,
     };
 
     if (existingSwipe) {
-      await prisma.swipe.update({ where: { id: existingSwipe.id }, data: swipeData });
+      await updateSwipe(existingSwipe.id, swipeData);
     } else {
-      await prisma.swipe.create({ data: swipeData });
+      await saveSwipe({
+        swiperId: user.id,
+        targetId: data.targetId,
+        targetJobId: data.targetJobId ?? null,
+        isLike: data.isLike,
+        isSuperLike: data.isSuperLike,
+      });
     }
 
     let createdMatch = null;
 
     if (data.targetType === "job" && user.userType === UserType.Candidate && data.isLike) {
-      const job = await prisma.job.findUnique({
-        where: { id: data.targetId },
-        include: {
-          employer: {
-            include: { user: true },
-          },
-        },
-      });
+      const job = await getJobById(data.targetId);
 
-      if (job && job.employer.user) {
-        const employerUser = job.employer.user;
-        const employerSwipe = await prisma.swipe.findFirst({
-          where: {
-            swiperId: employerUser.id,
-            targetId: user.id,
-            isLike: true,
-          },
-        });
+      if (job) {
+        const employerProfile = await getEmployerProfile(job.employerId);
+        if (employerProfile) {
+          const employerUser = await getUserById(employerProfile.userId);
+          if (employerUser) {
+            const employerSwipes = await listSwipesBySwiper(employerUser.id);
+            const employerSwipe = employerSwipes.find((swipe: any) => swipe.targetId === user.id && swipe.isLike);
 
-        if (employerSwipe) {
-          const match = await prisma.match.upsert({
-            where: {
-              candidateId_employerId_jobId: {
-                candidateId: user.id,
-                employerId: employerUser.id,
-                jobId: job.id,
-              },
-            },
-            create: {
-              candidateId: user.id,
-              employerId: employerUser.id,
-              jobId: job.id,
-            },
-            update: {},
-          });
-
-          createdMatch = match;
-          await prisma.conversation.upsert({
-            where: { matchId: match.id },
-            create: {
-              matchId: match.id,
-              participant1Id: user.id,
-              participant2Id: employerUser.id,
-            },
-            update: {},
-          });
+            if (employerSwipe) {
+              const match = await createMatch({ candidateId: user.id, employerId: employerUser.id, jobId: job.id });
+              createdMatch = match;
+              await createConversation({ matchId: match.id, participant1Id: user.id, participant2Id: employerUser.id });
+            }
+          }
         }
       }
     }
 
     if (data.targetType === "candidate" && user.userType === UserType.Employer && data.isLike) {
-      const employerProfile = await prisma.employerProfile.findUnique({ where: { userId: user.id } });
+      const employerProfile = await getEmployerProfile(user.id);
       if (employerProfile) {
         const candidateId = data.targetId;
-        const likedJobs = await prisma.swipe.findMany({
-          where: {
-            swiperId: candidateId,
-            isLike: true,
-            targetJobId: { not: null },
-          },
-        });
+        const candidateSwipes = await listSwipesBySwiper(candidateId);
 
-        for (const likedJob of likedJobs) {
-          const job = await prisma.job.findUnique({ where: { id: likedJob.targetJobId! } });
+        for (const likedJob of candidateSwipes.filter((swipe: any) => swipe.isLike && swipe.targetJobId)) {
+          const job = await getJobById(likedJob.targetJobId);
           if (job && job.employerId === employerProfile.id) {
-            const match = await prisma.match.upsert({
-              where: {
-                candidateId_employerId_jobId: {
-                  candidateId,
-                  employerId: user.id,
-                  jobId: job.id,
-                },
-              },
-              create: {
-                candidateId,
-                employerId: user.id,
-                jobId: job.id,
-              },
-              update: {},
-            });
+            const match = await createMatch({ candidateId, employerId: user.id, jobId: job.id });
             createdMatch = match;
-            await prisma.conversation.upsert({
-              where: { matchId: match.id },
-              create: {
-                matchId: match.id,
-                participant1Id: candidateId,
-                participant2Id: user.id,
-              },
-              update: {},
-            });
+            await createConversation({ matchId: match.id, participant1Id: candidateId, participant2Id: user.id });
           }
         }
       }

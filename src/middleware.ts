@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { UserType } from "@prisma/client";
+import { UserType } from "@/lib/firebase";
 
 export async function middleware(req: NextRequest) {
   const session = await auth();

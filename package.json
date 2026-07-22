@@ -20,7 +20,9 @@
     "bcryptjs": "^2.4.3",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "firebase-admin": "^14.2.0",
     "framer-motion": "^11.3.17",
+    "jose": "^6.2.3",
     "lucide-react": "^0.417.0",
     "next": "16.2.9",
     "next-auth": "^5.0.0-beta.19",
@@ -31,8 +33,7 @@
     "tailwind-merge": "^2.4.0",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.23.8",
-    "zustand": "^4.5.4",
-    "jose": "^6.2.3"
+    "zustand": "^4.5.4"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

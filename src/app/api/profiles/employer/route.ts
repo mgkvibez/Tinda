@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { getEmployerProfile, upsertEmployerProfile } from "@/lib/firebase";
 import * as z from "zod";
 
 const employerSchema = z.object({
@@ -23,7 +23,7 @@ export async function GET() {
   const user = (session as any)?.user;
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-  const profile = await prisma.employerProfile.findUnique({ where: { userId: user.id } });
+  const profile = await getEmployerProfile(user.id);
   return NextResponse.json(profile ?? null);
 }
 
@@ -36,37 +36,19 @@ export async function PUT(request: Request) {
     const body = await request.json();
     const data = employerSchema.parse(body);
 
-    const upserted = await prisma.employerProfile.upsert({
-      where: { userId: user.id },
-      create: {
-        userId: user.id,
-        companyName: data.companyName || undefined,
-        logo: data.logo || undefined,
-        industry: data.industry || undefined,
-        companySize: data.companySize || undefined,
-        website: data.website || undefined,
-        headquarters: data.headquarters || undefined,
-        aboutCompany: data.aboutCompany || undefined,
-        recruiterName: data.recruiterName || undefined,
-        recruiterPosition: data.recruiterPosition || undefined,
-        recruiterEmail: data.recruiterEmail || undefined,
-        recruiterPhone: data.recruiterPhone || undefined,
-        subscriptionTier: (data.subscriptionTier as any) || undefined,
-      },
-      update: {
-        companyName: data.companyName || undefined,
-        logo: data.logo || undefined,
-        industry: data.industry || undefined,
-        companySize: data.companySize || undefined,
-        website: data.website || undefined,
-        headquarters: data.headquarters || undefined,
-        aboutCompany: data.aboutCompany || undefined,
-        recruiterName: data.recruiterName || undefined,
-        recruiterPosition: data.recruiterPosition || undefined,
-        recruiterEmail: data.recruiterEmail || undefined,
-        recruiterPhone: data.recruiterPhone || undefined,
-        subscriptionTier: (data.subscriptionTier as any) || undefined,
-      },
+    const upserted = await upsertEmployerProfile(user.id, {
+      companyName: data.companyName ?? null,
+      logo: data.logo ?? null,
+      industry: data.industry ?? null,
+      companySize: data.companySize ?? null,
+      website: data.website ?? null,
+      headquarters: data.headquarters ?? null,
+      aboutCompany: data.aboutCompany ?? null,
+      recruiterName: data.recruiterName ?? null,
+      recruiterPosition: data.recruiterPosition ?? null,
+      recruiterEmail: data.recruiterEmail ?? null,
+      recruiterPhone: data.recruiterPhone ?? null,
+      subscriptionTier: data.subscriptionTier ?? null,
     });
 
     return NextResponse.json(upserted);

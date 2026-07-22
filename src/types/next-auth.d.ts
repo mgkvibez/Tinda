@@ -1,6 +1,6 @@
-import NextAuth, { DefaultSession } from "next-auth";
+import { DefaultSession } from "next-auth";
 import { JWT } from "next-auth/jwt";
-import { UserType } from "@prisma/client";
+import { UserType } from "@/lib/firebase";
 
 declare module "next-auth" {
   interface Session {
