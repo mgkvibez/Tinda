@@ -139,7 +139,7 @@ export async function POST(request: Request) {
         const candidateSwipes = await listSwipesBySwiper(candidateId);
 
         for (const likedJob of candidateSwipes.filter((swipe: any) => swipe.isLike && swipe.targetJobId)) {
-          const job = await getJobById(likedJob.targetJobId);
+          const job = await getJobById((likedJob as any).targetJobId);
           if (job && job.employerId === employerProfile.id) {
             const match = await createMatch({ candidateId, employerId: user.id, jobId: job.id });
             createdMatch = match;
