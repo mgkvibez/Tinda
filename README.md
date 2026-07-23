@@ -1,72 +1,57 @@
+# Tinda
 
-# Tinda — Apple Sign In Setup
+Tinda is a Next.js app that uses Firebase Firestore for persistence and NextAuth for authentication.
 
-This repository includes an Apple Sign In provider for NextAuth. Below are steps to configure Apple OAuth and a small helper script to generate the Apple client secret (a signed JWT).
+## Tech stack
 
-## 1) Create an Apple Service ID and Key
+- Next.js
+- Firebase Admin SDK + Firestore
+- NextAuth credentials auth
+- Tailwind CSS
 
-- Go to Apple Developer (Certificates, Identifiers & Profiles).
-- Under "Identifiers" create a new **Service ID** (this will be your `CLIENT_ID`).
-- Configure the Service ID with the Sign In with Apple capability and add web domain/redirect URL (e.g. `https://your-domain.com/api/auth/callback/apple`).
-- Under "Keys" create a new key with the Sign in with Apple capability; download the `.p8` private key. You will get:
-  - `AuthKey_XXXXXXXXXX.p8` (the private key file)
-  - `KEY ID` (visible in the Keys list)
-  - `TEAM ID` (your Apple Developer team ID)
+## Firebase setup
 
-## 2) Fill `.env` values
+### 1) Create a Firebase project
 
-Edit your `.env` (or environment) and set these values:
+1. Go to the Firebase console.
+2. Create a new project.
+3. Enable Firestore Database.
+4. Enable Authentication and leave the default providers enabled for development.
 
-- `APPLE_CLIENT_ID` = Service ID (e.g. `com.example.web`) 
-- `APPLE_CLIENT_SECRET` = (a JWT you generate using the helper below)
-- `APPLE_CLIENT_KEY_ID` = the Key ID (optional usage)
-- `NEXTAUTH_SECRET` = a strong random value (e.g. `openssl rand -base64 32`)
+### 2) Generate service account credentials
 
-Important: `next-auth` expects `clientSecret` to be the JWT string for Apple Provider.
+1. Open Project Settings.
+2. Go to Service accounts.
+3. Generate a new private key.
+4. Copy the values for:
+   - `project_id`
+   - `client_email`
+   - `private_key`
 
-## 3) Generate the Apple Client Secret (JWT)
+### 3) Configure environment variables
 
-A helper script is included at `scripts/generate-apple-client-secret.mjs` that uses the `jose` package to sign the JWT.
+Create or update your `.env` file with the following values:
 
-Example command:
-
-```bash
-node scripts/generate-apple-client-secret.mjs \
-  --key-file ./AuthKey.p8 \
-  --team-id YOUR_TEAM_ID \
-  --client-id YOUR_SERVICE_ID \
-  --key-id YOUR_KEY_ID
+```env
+NEXTAUTH_SECRET=your-strong-secret
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_CLIENT_EMAIL=your-service-account-email
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY\n-----END PRIVATE KEY-----\n"
 ```
 
-This will print a long JWT string which you can paste into `APPLE_CLIENT_SECRET` in your environment.
+> The `FIREBASE_PRIVATE_KEY` value must include the full private key and preserve the newlines exactly.
 
-You can also run the included npm script which forwards to the generator:
-
-```bash
-npm run gen:apple-secret -- --key-file ./AuthKey.p8 --team-id TEAM --client-id CLIENT --key-id KEY
-```
-
-To automatically write the secret into `.env` use `--write-env`:
+### 4) Run locally
 
 ```bash
-npm run gen:apple-secret -- --key-file ./AuthKey.p8 --team-id TEAM --client-id CLIENT --key-id KEY --write-env
-```
-
-## 4) NextAuth configuration
-
-`src/lib/auth.ts` already registers the Apple provider. Ensure your `.env` variables are set and run the app.
-
-## 5) Testing
-
-Run the dev server and test sign in with Apple:
-
-```bash
+npm install
 npm run dev
 ```
 
-Visit `/login` and choose Sign in with Apple.
+Visit `http://localhost:3000` and use the app.
 
-If you want the helper script to output directly into your `.env`, run the script and copy-paste the JWT into `APPLE_CLIENT_SECRET`.
+## Notes
 
----
-If you want, I can also add an npm script to generate the secret and optionally write it to `.env` automatically (securely). Want that next? 
+- The app now uses Firestore instead of Prisma.
+- Authentication is handled through NextAuth with credentials-based sign-in.
+- If you deploy to Vercel, add the same Firebase environment variables in the Vercel dashboard.
