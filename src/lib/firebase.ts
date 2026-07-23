@@ -8,7 +8,6 @@ export interface FirestoreUser {
   id: string;
   name?: string | null;
   email: string;
-  password?: string | null;
   userType: UserType;
   createdAt?: string;
   updatedAt?: string;

@@ -8,9 +8,10 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { auth } from "@/lib/firebase/client";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -33,22 +34,11 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormInputs) => {
     setIsLoading(true);
     try {
-      const result = await signIn("credentials", {
-        redirect: false,
-        email: data.email,
-        password: data.password,
-      });
-
-      if (result?.error) {
-        console.error("Login error:", result.error);
-        alert(result.error); // Temporary alert
-      } else {
-        console.log("Login successful!");
-        router.push("/"); // Redirect to home, which will then redirect to dashboard
-      }
+      await signInWithEmailAndPassword(auth, data.email, data.password);
+      router.push("/dashboard");
     } catch (error) {
-      console.error("An unexpected error occurred:", error);
-      // toast.error("An unexpected error occurred. Please try again."); // Uncomment when toast is integrated
+      const message = error instanceof Error ? error.message : "Invalid credentials";
+      console.error("Login error:", message);
       alert("An unexpected error occurred. Please try again."); // Temporary alert
     } finally {
       setIsLoading(false);
@@ -58,10 +48,11 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
-      await signIn("google", { callbackUrl: "/" });
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      router.push("/dashboard");
     } catch (error) {
       console.error("Google sign-in error:", error);
-      // toast.error("Failed to sign in with Google."); // Uncomment when toast is integrated
       alert("Failed to sign in with Google."); // Temporary alert
     } finally {
       setIsLoading(false);
