@@ -1,11 +1,13 @@
-import { auth } from "@/lib/auth";
+import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { UserType } from "@/lib/firebase";
+import { UserType } from "@/lib/user-types";
 
 export async function middleware(req: NextRequest) {
-  const session = await auth();
-  const token = (session as any)?.user;
+  const token = await getToken({
+    req,
+    secret: process.env.NEXTAUTH_SECRET,
+  });
   const pathname = req.nextUrl.pathname;
 
   // Allow access to auth pages without authentication
@@ -22,7 +24,7 @@ export async function middleware(req: NextRequest) {
   if (isPublicPath) {
     // Redirect authenticated users from auth pages to their dashboard
     if (token) {
-      const userType = token.userType as UserType;
+      const userType = (token.userType as UserType | undefined) ?? UserType.Candidate;
       if (userType === UserType.Candidate) {
         return NextResponse.redirect(new URL("/candidate/dashboard", req.url));
       } else if (userType === UserType.Employer) {
@@ -40,7 +42,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  const userType = token.userType as UserType;
+  const userType = (token.userType as UserType | undefined) ?? UserType.Candidate;
 
   if (pathname.startsWith("/candidate") && userType !== UserType.Candidate) {
     return NextResponse.redirect(new URL("/access-denied", req.url));
