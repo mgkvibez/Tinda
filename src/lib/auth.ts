@@ -1,9 +1,10 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import type { NextAuthOptions } from "next-auth";
 import { compare } from "bcryptjs";
 import { getUserByEmail, UserType } from "@/lib/firebase";
 
-export const authOptions = {
+export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -63,4 +64,7 @@ export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
 };
 
-export const { auth, handlers, signIn, signOut } = NextAuth(authOptions);
+const handler = NextAuth(authOptions);
+
+export const { GET, POST } = handler;
+export const auth = handler;
