@@ -1,57 +1,105 @@
-# Tinda
+# Tinda - Swipe your way to the perfect job or discover top talent with intelligent matching.
 
-Tinda is a Next.js app that uses Firebase Firestore for persistence and NextAuth for authentication.
+## Live Demo
+[Insert Live URL Here]
 
-## Tech stack
+## Features
+- **Pure Firebase Auth**: Secure Email/Password and Google Social Login.
+- **Swipe Logic**: Intuitive matching interface for both Candidates and Employers.
+- **Real-time Matching**: Instant match creation and automated conversation initialization.
+- **Role-based Dashboards**: Specialized views for managing job applications and talent discovery.
+- **Secure File Storage**: Firebase Storage integration for resumes, profile pictures, and company logos.
+- **Serverless Architecture**: Utilizes Next.js 15 Server Actions for secure, type-safe database operations.
 
-- Next.js
-- Firebase Admin SDK + Firestore
-- NextAuth credentials auth
-- Tailwind CSS
+## Tech Stack
+- **Framework**: Next.js 15 (App Router)
+- **Authentication**: Firebase Auth
+- **Database**: Firebase Firestore
+- **File Storage**: Firebase Storage
+- **Styling**: Tailwind CSS + shadcn/ui
+- **Validation**: Zod + React Hook Form
+- **Type Safety**: TypeScript Strict
 
-## Firebase setup
+## Firestore Structure
 
-### 1) Create a Firebase project
+### `users`
+- `uid`: string (Document ID)
+- `email`: string
+- `name`: string
+- `userType`: "Candidate" | "Employer"
+- `ownerId`: string
+- `createdAt`: timestamp
+- `updatedAt`: timestamp
 
-1. Go to the Firebase console.
-2. Create a new project.
-3. Enable Firestore Database.
-4. Enable Authentication and leave the default providers enabled for development.
+### `candidateProfiles`
+- `userId`: string (Reference to users.uid)
+- `fullName`: string
+- `profilePicture`: string (Storage URL)
+- `skills`: string[]
+- `bio`: string
 
-### 2) Generate service account credentials
+### `employerProfiles`
+- `userId`: string (Reference to users.uid)
+- `companyName`: string
+- `logo`: string (Storage URL)
+-
+### `jobs`
+- `employerId`: string
+- `title`: string
+- `description`: string
+- `isPublished`: boolean
+- `isArchived`: boolean
 
-1. Open Project Settings.
-2. Go to Service accounts.
-3. Generate a new private key.
-4. Copy the values for:
-   - `project_id`
-   - `client_email`
-   - `private_key`
+### `swipes`
+- `swiperId`: string (UID of user swiping)
+- `targetId`: string (UID or Job ID being swiped)
+- `isLike`: boolean
+- `targetJobId`: string (Optional reference for candidates swiping specific jobs)
 
-### 3) Configure environment variables
+## Firebase Setup
 
-Create or update your `.env` file with the following values:
+1. **Create a Firebase Project**: Start a new project at the Firebase Console.
+2. **Enable Services**:
+   - **Authentication**: Enable Email/Password and Google providers.
+   - **Firestore Database**: Initialize in production mode.
+   - **Firebase Storage**: Initialize for handling file uploads.
+3. **Generate Service Account**:
+   - Project Settings > Service Accounts > Generate New Private Key.
+   - Note the `project_id`, `client_email`, and `private_key`.
+4. **Configure Environment Variables**:
+   Create a `.env.local` file with the following:
+   ```env
+   # Server-side (Firebase Admin SDK)
+   FIREBASE_PROJECT_ID="..."
+   FIREBASE_CLIENT_EMAIL="..."
+   FIREBASE_PRIVATE_KEY="..."
 
-```env
-NEXTAUTH_SECRET=your-strong-secret
-FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_CLIENT_EMAIL=your-service-account-email
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY\n-----END PRIVATE KEY-----\n"
-```
+   # Client-side (Firebase SDK)
+   NEXT_PUBLIC_FIREBASE_API_KEY="..."
+   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="..."
+   NEXT_PUBLIC_FIREBASE_PROJECT_ID="..."
+   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="..."
+   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="..."
+   NEXT_PUBLIC_FIREBASE_APP_ID="..."
+   ```
+5. **Deploy Security Rules**:
+   ```bash
+   firebase deploy --only firestore:rules,storage:rules
+   ```
 
-> The `FIREBASE_PRIVATE_KEY` value must include the full private key and preserve the newlines exactly.
+## Run Locally
 
-### 4) Run locally
+1. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
 
-```bash
-npm install
-npm run dev
-```
+2. **Run Development Server**:
+   ```bash
+   npm run dev
+   ```
 
-Visit `http://localhost:3000` and use the app.
-
-## Notes
-
-- The app now uses Firestore instead of Prisma.
-- Authentication is handled through NextAuth with credentials-based sign-in.
-- If you deploy to Vercel, add the same Firebase environment variables in the Vercel dashboard.
+3. **Build for Production**:
+   ```bash
+   npm run build
+   ```

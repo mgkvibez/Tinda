@@ -4,31 +4,18 @@ import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useAuth } from "@/context/AuthContext";
 
 export default function HomePage() {
-  const { data: session, status } = useSession();
+  const { user, loading } = useAuth();
   const router = useRouter();
 
-  useEffect(() => {
-    if (status === "authenticated") {
-      // Redirect authenticated users to their dashboard based on userType
-      if (session?.user?.userType === "Candidate") {
-        router.push("/candidate/dashboard");
-      } else if (session?.user?.userType === "Employer") {
-        router.push("/employer/dashboard");
-      } else if (session?.user?.userType === "Admin") {
-        router.push("/admin/dashboard");
-      } else {
-        // Fallback for users without a specific userType set yet
-        router.push("/dashboard");
-      }
-    }
-  }, [status, session, router]);
+  if (user) {
+    router.push("/dashboard");
+  }
 
-  if (status === "loading") {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background text-primary">
         <p>Loading...</p>

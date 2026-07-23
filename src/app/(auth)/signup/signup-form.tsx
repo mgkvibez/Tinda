@@ -8,10 +8,12 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { auth, db } from "@/lib/firebase/client";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 const signupSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -52,30 +54,23 @@ export function SignupForm() {
   const onSubmit = async (data: SignupFormInputs) => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: data.name,
-          email: data.email,
-          password: data.password,
-          userType: data.userType,
-        }),
+      // 1. Create User in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+      const user = userCredential.user;
+
+      // 2. Create User Profile in Firestore (Password is NOT stored here)
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        name: data.name,
+        email: data.email,
+        userType: data.userType,
+        ownerId: user.uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        const fallbackText = await response.text().catch(() => "");
-        const errorMessage = errorData?.message || fallbackText || "Registration failed.";
-        console.error("Registration error:", { status: response.status, body: errorData ?? fallbackText });
-        alert(errorMessage);
-        return;
-      }
-
       console.log("Registration successful!");
-      router.push("/login");
+      router.push("/dashboard");
     } catch (error) {
       console.error("An unexpected error occurred:", error);
       alert("An unexpected error occurred. Please try again.");
@@ -87,7 +82,9 @@ export function SignupForm() {
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
-      await signIn("google", { callbackUrl: "/" });
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      router.push("/dashboard");
     } catch (error) {
       console.error("Google sign-in error:", error);
       alert("Failed to sign in with Google.");
