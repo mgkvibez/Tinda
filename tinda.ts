@@ -1,18 +1,11 @@
 "use server";
 
 import "server-only";
-import { cookies } from "next/headers";
-import { adminAuth, adminDb } from "@/lib/firebase/admin";
+import { adminDb } from "@/lib/firebase/admin";
 import { tindaDocSchema } from "@/lib/validations";
 import { FieldValue } from "firebase-admin/firestore";
 import { revalidatePath } from "next/cache";
-
-async function getAuthenticatedUser() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("__session")?.value;
-  if (!token) throw new Error("Unauthorized");
-  return adminAuth.verifyIdToken(token);
-}
+import { getAuthenticatedUser } from "@/lib/auth";
 
 export async function createTindaDoc(data: unknown) {
   const user = await getAuthenticatedUser();
@@ -46,4 +39,6 @@ export async function updateTindaDoc(id: string, data: unknown) {
     ...validated,
     updatedAt: FieldValue.serverTimestamp(),
   });
+
+  revalidatePath("/dashboard");
 }
