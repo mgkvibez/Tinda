@@ -1,19 +1,21 @@
-import 'server-only';
-import * as admin from 'firebase-admin';
-import { env } from '@/lib/env';
+import 'server-only'
+import { initializeApp, getApps, cert } from 'firebase-admin/app'
+import { getFirestore } from 'firebase-admin/firestore'
+import { getAuth } from 'firebase-admin/auth'
 
-const serviceAccount = {
-  projectId: env.FIREBASE_PROJECT_ID,
-  clientEmail: env.FIREBASE_CLIENT_EMAIL,
-  privateKey: env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'), // Handle newline characters
-};
-
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
+if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
+  throw new Error('Missing Firebase Admin envs')
 }
 
-export const adminDb = admin.firestore();
-export const adminAuth = admin.auth();
-export const adminStorage = admin.storage();
+const privateKey = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+
+const adminApp = getApps().length > 0 ? getApps()[0] : initializeApp({
+  credential: cert({
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey: privateKey,
+  }),
+})
+
+export const adminDb = getFirestore(adminApp)
+export const adminAuth = getAuth(adminApp)
