@@ -1,21 +1,16 @@
-import "server-only";
-import { cookies } from "next/headers";
-import { adminAuth } from "@/lib/firebase/admin";
+import 'server-only'
+import { adminAuth, adminDb } from './firebase/admin'
 
-/**
- * Shared utility to get and verify the authenticated user from the session cookie.
- */
-export async function getAuthenticatedUser() {
-  const cookieStore = cookies();
-  const token = cookieStore.get("__session")?.value;
-
-  if (!token) {
-    throw new Error("Unauthorized");
-  }
-
+export async function getAuthenticatedUser(req?: Request) {
   try {
-    return await adminAuth.verifyIdToken(token);
-  } catch (error) {
-    throw new Error("Invalid session");
-  }
+    const token = req?.headers.get('authorization')?.replace('Bearer ', '')
+    if (!token) return null
+    const decoded = await adminAuth.verifyIdToken(token)
+    return decoded
+  } catch { return null }
 }
+
+// Dummy exports to make old [...nextauth] route not crash - we are moving to Firebase Auth
+export const auth = { getAuthenticatedUser }
+export const GET = async () => new Response('Use Firebase Auth', { status: 200 })
+export const POST = async () => new Response('Use Firebase Auth', { status: 200 })
