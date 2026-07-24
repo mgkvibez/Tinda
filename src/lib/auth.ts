@@ -17,3 +17,11 @@ export async function getAuthenticatedUser() {
     throw new Error("Invalid session");
   }
 }
+
+/**
+ * Alias to satisfy imports in existing API routes.
+ */
+export { getAuthenticatedUser as auth };
+
+export const GET = () => new Response("Auth route deprecated", { status: 410 });
+export const POST = () => new Response("Auth route deprecated", { status: 410 });
