@@ -1,10 +1,11 @@
-import * as admin from "firebase-admin";
-import { env } from "@/lib/env";
+import 'server-only';
+import * as admin from 'firebase-admin';
+import { env } from '@/lib/env';
 
 const serviceAccount = {
   projectId: env.FIREBASE_PROJECT_ID,
   clientEmail: env.FIREBASE_CLIENT_EMAIL,
-  privateKey: env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+  privateKey: env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'), // Handle newline characters
 };
 
 if (!admin.apps.length) {
@@ -13,12 +14,6 @@ if (!admin.apps.length) {
   });
 }
 
-const adminAuth = admin.auth();
-const adminDb = admin.firestore();
-const adminStorage = admin.storage();
-
-export { 
-  adminAuth, 
-  adminDb, 
-  adminStorage 
-};
+export const adminDb = admin.firestore();
+export const adminAuth = admin.auth();
+export const adminStorage = admin.storage();

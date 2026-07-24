@@ -8,12 +8,13 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "@/lib/firebase/client";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { useAuth } from "@/context/AuthContext";
 
 const signupSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -32,8 +33,8 @@ type SignupFormInputs = z.infer<typeof signupSchema>;
 
 export function SignupForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const defaultUserType = searchParams?.get("type") === "employer" ? "Employer" : "Candidate";
+  // Default to Candidate, can be overridden by query params if needed
+  const defaultUserType = "Candidate"; 
   const [isLoading, setIsLoading] = useState(false);
 
   const {
@@ -48,6 +49,7 @@ export function SignupForm() {
       userType: defaultUserType as "Candidate" | "Employer",
     },
   });
+  const { signInWithGoogle } = useAuth();
 
   const selectedUserType = watch("userType");
 
@@ -80,11 +82,9 @@ export function SignupForm() {
   };
 
   const handleGoogleSignIn = async () => {
-    setIsLoading(true);
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      router.push("/dashboard");
+      setIsLoading(true);
+      await signInWithGoogle();
     } catch (error) {
       console.error("Google sign-in error:", error);
       alert("Failed to sign in with Google.");
