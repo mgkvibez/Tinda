@@ -31,8 +31,12 @@ export async function updateTindaDoc(id: string, data: unknown) {
   const docRef = adminDb.collection("tindas").doc(id);
   const doc = await docRef.get();
 
-  if (!doc.exists || doc.data()?.ownerId !== user.uid) {
-    throw new Error("Forbidden");
+  if (!doc.exists) {
+    throw new Error("Document not found");
+  }
+
+  if (doc.data()?.ownerId !== user.uid) {
+    throw new Error("Access denied: You do not have permission to update this document");
   }
 
   await docRef.update({
@@ -40,5 +44,6 @@ export async function updateTindaDoc(id: string, data: unknown) {
     updatedAt: FieldValue.serverTimestamp(),
   });
 
-  revalidatePath("/dashboard");
+  // Revalidate the dashboard and the specific item if necessary
+  revalidatePath("/dashboard", "layout");
 }

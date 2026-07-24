@@ -11,10 +11,16 @@ export async function updateUserProfile(data: unknown) {
   const user = await getAuthenticatedUser();
   const validated = userProfileSchema.parse(data);
 
-  await adminDb.collection("users").doc(user.uid).update({
-    ...validated,
-    updatedAt: FieldValue.serverTimestamp(),
-  });
+  await adminDb
+    .collection("users")
+    .doc(user.uid)
+    .set(
+      {
+        ...validated,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
 
   revalidatePath("/dashboard");
 }
