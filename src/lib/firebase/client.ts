@@ -1,8 +1,8 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
-import { env } from "@/lib/env";
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
+import { env } from '@/lib/env'; // Assuming env is already set up
 
 const firebaseConfig = {
   apiKey: env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -11,14 +11,9 @@ const firebaseConfig = {
   storageBucket: env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase for SSR and Client
-const firebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-
-const auth = getAuth(firebaseApp);
-const db = getFirestore(firebaseApp);
-const storage = getStorage(firebaseApp);
-
-export { firebaseApp, auth, db, storage };
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const storage = getStorage(app);
