@@ -982,3 +982,104 @@ export async function getCandidateInsights(candidateId: string): Promise<any> {
     topJobTypes,
   }
 }
+
+// ─── Resume Builder ───────────────────────────────────────
+
+export interface ResumeRecord {
+  id: string
+  candidateId: string
+  template: 'modern' | 'classic' | 'minimal'
+  title: string
+  summary: string
+  experience: ResumeExperience[]
+  education: ResumeEducation[]
+  skills: string[]
+  certifications: string[]
+  projects: ResumeProject[]
+  contact: {
+    email: string | null
+    phone: string | null
+    location: string | null
+    linkedinUrl: string | null
+    githubUrl: string | null
+    portfolioUrl: string | null
+  }
+  updatedAt: string
+}
+
+export interface ResumeExperience {
+  id: string
+  company: string
+  role: string
+  startDate: string
+  endDate: string | null
+  current: boolean
+  description: string
+}
+
+export interface ResumeEducation {
+  id: string
+  institution: string
+  degree: string
+  field: string
+  graduationYear: string
+  description: string
+}
+
+export interface ResumeProject {
+  id: string
+  name: string
+  description: string
+  link: string | null
+}
+
+export async function getResume(candidateId: string): Promise<ResumeRecord | null> {
+  const snap = await adminDb.collection('resumes').where('candidateId', '==', candidateId).limit(1).get()
+  if (snap.empty) return null
+  return { id: snap.docs[0].id, ...snap.docs[0].data() } as ResumeRecord
+}
+
+export async function saveResume(candidateId: string, data: Partial<Omit<ResumeRecord, 'id' | 'candidateId' | 'updatedAt'>>): Promise<ResumeRecord> {
+  const snap = await adminDb.collection('resumes').where('candidateId', '==', candidateId).limit(1).get()
+  const now = new Date().toISOString()
+
+  if (snap.empty) {
+    // Auto-populate from candidate profile
+    const profile = await getCandidateProfile(candidateId)
+    const autoData = {
+      ...data,
+      candidateId,
+      template: data.template || 'modern' as const,
+      title: data.title || profile?.currentRole || 'My Resume',
+      summary: data.summary || profile?.bio || '',
+      skills: data.skills || profile?.skills || [],
+      certifications: data.certifications || profile?.certifications || [],
+      contact: data.contact || {
+        email: null,
+        phone: profile?.phone || null,
+        location: profile?.location || null,
+        linkedinUrl: profile?.linkedinUrl || null,
+        githubUrl: profile?.githubUrl || null,
+        portfolioUrl: profile?.portfolioUrl || null,
+      },
+      experience: data.experience || [],
+      education: data.education?.length ? data.education : (profile?.education || []).map((e, i) => ({
+        id: `edu_${i}`,
+        institution: e,
+        degree: '',
+        field: '',
+        graduationYear: '',
+        description: '',
+      })),
+      projects: data.projects || [],
+    }
+    const ref = adminDb.collection('resumes').doc()
+    await ref.set({ ...autoData, updatedAt: now })
+    return { id: ref.id, ...autoData, updatedAt: now } as ResumeRecord
+  } else {
+    const ref = snap.docs[0].ref
+    await ref.set({ ...data, candidateId, updatedAt: now }, { merge: true })
+    const doc = await ref.get()
+    return { id: doc.id, ...doc.data() } as ResumeRecord
+  }
+}

@@ -106,4 +106,12 @@ service cloud.firestore {
       allow update, delete: if request.auth != null && resource.data.candidateId == request.auth.uid;
     }
   }
+
+    // Resumes
+    match /resumes/{resumeId} {
+      allow read: if request.auth != null && resource.data.candidateId == request.auth.uid;
+      allow create, update: if request.auth != null && request.resource.data.candidateId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.candidateId == request.auth.uid;
+    }
+  }
 }
