@@ -584,3 +584,401 @@ export async function updateSwipeAnalytics(
 
   await ref.set(analytics, { merge: true })
 }
+
+// ─── Application Tracking Pipeline ─────────────────────────
+
+export type MatchStage = 'matched' | 'screening' | 'interviewing' | 'offer' | 'hired' | 'rejected'
+
+export interface ApplicationRecord {
+  id: string
+  matchId: string
+  candidateId: string
+  employerId: string
+  jobId: string
+  stage: MatchStage
+  notes: string | null
+  updatedAt: string
+}
+
+export async function updateMatchStage(
+  matchId: string,
+  stage: MatchStage,
+  notes?: string,
+): Promise<void> {
+  const match = await adminDb.collection('matches').doc(matchId).get()
+  if (!match.exists) return
+  const data = match.data() as MatchRecord
+  const now = new Date().toISOString()
+  await adminDb.collection('matches').doc(matchId).set({ stage, stageUpdatedAt: now, notes: notes || null }, { merge: true })
+
+  // Notify candidate of stage change
+  if (stage === 'interviewing') {
+    await createNotification({
+      userId: data.candidateId,
+      type: 'stage_update',
+      title: 'Application Update',
+      body: `Your application moved to the Interview stage!`,
+      data: { matchId, stage },
+    })
+  } else if (stage === 'offer') {
+    await createNotification({
+      userId: data.candidateId,
+      type: 'stage_update',
+      title: 'Offer Received!',
+      body: `Congratulations! You've received an offer.`,
+      data: { matchId, stage },
+    })
+  } else if (stage === 'rejected') {
+    await createNotification({
+      userId: data.candidateId,
+      type: 'stage_update',
+      title: 'Application Update',
+      body: `Your application status has been updated.`,
+      data: { matchId, stage },
+    })
+  }
+}
+
+export async function getEmployerPipeline(employerId: string): Promise<any[]> {
+  const snap = await adminDb.collection('matches').where('employerId', '==', employerId).get()
+  const matches = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+  // Enrich with candidate profiles
+  const enriched = []
+  for (const m of matches) {
+    const profile = await getCandidateProfile(m.candidateId)
+    const job = await getJobById(m.jobId)
+    enriched.push({ ...m, candidateProfile: profile, job })
+  }
+  return enriched
+}
+
+export async function getCandidateApplications(candidateId: string): Promise<any[]> {
+  const snap = await adminDb.collection('matches').where('candidateId', '==', candidateId).get()
+  const matches = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+  const enriched = []
+  for (const m of matches) {
+    const job = await getJobById(m.jobId)
+    const employer = await getEmployerProfile(m.employerId)
+    enriched.push({ ...m, job, employer })
+  }
+  return enriched
+}
+
+// ─── Interview Scheduling ─────────────────────────────────
+
+export interface InterviewRecord {
+  id: string
+  matchId: string
+  candidateId: string
+  employerId: string
+  jobId: string
+  scheduledAt: string
+  duration: number
+  type: 'video' | 'phone' | 'in_person'
+  location: string | null
+  meetingUrl: string | null
+  notes: string | null
+  status: 'scheduled' | 'completed' | 'cancelled' | 'rescheduled'
+  createdAt: string
+}
+
+export async function scheduleInterview(data: Omit<InterviewRecord, 'id' | 'createdAt'>): Promise<InterviewRecord> {
+  const ref = adminDb.collection('interviews').doc()
+  const now = new Date().toISOString()
+  await ref.set({ ...data, createdAt: now })
+
+  // Notify candidate
+  await createNotification({
+    userId: data.candidateId,
+    type: 'interview_scheduled',
+    title: 'Interview Scheduled!',
+    body: `Your interview is scheduled for ${new Date(data.scheduledAt).toLocaleDateString()}`,
+    data: { interviewId: ref.id, matchId: data.matchId },
+  })
+
+  return { id: ref.id, ...data, createdAt: now }
+}
+
+export async function listInterviews(userId: string): Promise<InterviewRecord[]> {
+  const snap1 = await adminDb.collection('interviews').where('candidateId', '==', userId).get()
+  const snap2 = await adminDb.collection('interviews').where('employerId', '==', userId).get()
+  const interviews = [...snap1.docs, ...snap2.docs].map((doc) => ({ id: doc.id, ...doc.data() }) as InterviewRecord)
+  // Deduplicate
+  const seen = new Set<string>()
+  return interviews.filter((i) => {
+    if (seen.has(i.id)) return false
+    seen.add(i.id)
+    return true
+  })
+}
+
+export async function updateInterviewStatus(id: string, status: InterviewRecord['status']): Promise<void> {
+  await adminDb.collection('interviews').doc(id).set({ status, updatedAt: new Date().toISOString() }, { merge: true })
+}
+
+export async function getInterviewById(id: string): Promise<InterviewRecord | null> {
+  const doc = await adminDb.collection('interviews').doc(id).get()
+  if (!doc.exists) return null
+  return { id: doc.id, ...doc.data() } as InterviewRecord
+}
+
+// ─── Skills Assessments ───────────────────────────────────
+
+export interface AssessmentRecord {
+  id: string
+  jobId: string
+  employerId: string
+  title: string
+  description: string
+  questions: AssessmentQuestion[]
+  passingScore: number
+  createdAt: string
+}
+
+export interface AssessmentQuestion {
+  id: string
+  question: string
+  options: string[]
+  correctIndex: number
+  skill: string
+}
+
+export interface AssessmentResultRecord {
+  id: string
+  assessmentId: string
+  jobId: string
+  candidateId: string
+  answers: number[]
+  score: number
+  passed: boolean
+  completedAt: string
+}
+
+export async function createAssessment(data: Omit<AssessmentRecord, 'id' | 'createdAt'>): Promise<AssessmentRecord> {
+  const ref = adminDb.collection('assessments').doc()
+  const now = new Date().toISOString()
+  await ref.set({ ...data, createdAt: now })
+  return { id: ref.id, ...data, createdAt: now }
+}
+
+export async function getAssessmentByJob(jobId: string): Promise<AssessmentRecord | null> {
+  const snap = await adminDb.collection('assessments').where('jobId', '==', jobId).limit(1).get()
+  if (snap.empty) return null
+  return { id: snap.docs[0].id, ...snap.docs[0].data() } as AssessmentRecord
+}
+
+export async function getAssessmentById(id: string): Promise<AssessmentRecord | null> {
+  const doc = await adminDb.collection('assessments').doc(id).get()
+  if (!doc.exists) return null
+  return { id: doc.id, ...doc.data() } as AssessmentRecord
+}
+
+export async function saveAssessmentResult(data: Omit<AssessmentResultRecord, 'id' | 'completedAt'>): Promise<AssessmentResultRecord> {
+  const ref = adminDb.collection('assessmentResults').doc()
+  const now = new Date().toISOString()
+  await ref.set({ ...data, completedAt: now })
+
+  // Notify employer if candidate passed
+  if (data.passed) {
+    await createNotification({
+      userId: data.candidateId,
+      type: 'assessment_passed',
+      title: 'Assessment Passed!',
+      body: `You passed the skills assessment with ${data.score}%!`,
+      data: { assessmentId: data.assessmentId, jobId: data.jobId },
+    })
+  }
+
+  return { id: ref.id, ...data, completedAt: now }
+}
+
+export async function getAssessmentResult(assessmentId: string, candidateId: string): Promise<AssessmentResultRecord | null> {
+  const snap = await adminDb.collection('assessmentResults')
+    .where('assessmentId', '==', assessmentId)
+    .where('candidateId', '==', candidateId)
+    .limit(1).get()
+  if (snap.empty) return null
+  return { id: snap.docs[0].id, ...snap.docs[0].data() } as AssessmentResultRecord
+}
+
+// ─── Saved / Bookmarked Jobs ───────────────────────────────
+
+export interface SavedJobRecord {
+  id: string
+  candidateId: string
+  jobId: string
+  savedAt: string
+}
+
+export async function saveJob(candidateId: string, jobId: string): Promise<void> {
+  const ref = adminDb.collection('savedJobs').doc(`${candidateId}_${jobId}`)
+  await ref.set({ candidateId, jobId, savedAt: new Date().toISOString() })
+}
+
+export async function unsaveJob(candidateId: string, jobId: string): Promise<void> {
+  await adminDb.collection('savedJobs').doc(`${candidateId}_${jobId}`).delete()
+}
+
+export async function listSavedJobs(candidateId: string): Promise<SavedJobRecord[]> {
+  const snap = await adminDb.collection('savedJobs').where('candidateId', '==', candidateId).get()
+  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as SavedJobRecord)
+}
+
+export async function isJobSaved(candidateId: string, jobId: string): Promise<boolean> {
+  const doc = await adminDb.collection('savedJobs').doc(`${candidateId}_${jobId}`).get()
+  return doc.exists
+}
+
+// ─── Job Alerts ────────────────────────────────────────────
+
+export interface JobAlertRecord {
+  id: string
+  candidateId: string
+  keywords: string[]
+  location: string | null
+  salaryMin: number | null
+  jobTypes: string[]
+  skills: string[]
+  active: boolean
+  createdAt: string
+}
+
+export async function createJobAlert(data: Omit<JobAlertRecord, 'id' | 'createdAt' | 'active'>): Promise<JobAlertRecord> {
+  const ref = adminDb.collection('jobAlerts').doc()
+  const now = new Date().toISOString()
+  await ref.set({ ...data, active: true, createdAt: now })
+  return { id: ref.id, ...data, active: true, createdAt: now }
+}
+
+export async function listJobAlerts(candidateId: string): Promise<JobAlertRecord[]> {
+  const snap = await adminDb.collection('jobAlerts').where('candidateId', '==', candidateId).get()
+  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as JobAlertRecord)
+}
+
+export async function updateJobAlert(id: string, data: Partial<JobAlertRecord>): Promise<void> {
+  await adminDb.collection('jobAlerts').doc(id).set({ ...data, updatedAt: new Date().toISOString() }, { merge: true })
+}
+
+export async function deleteJobAlert(id: string): Promise<void> {
+  await adminDb.collection('jobAlerts').doc(id).delete()
+}
+
+// ─── Employer Analytics ───────────────────────────────────
+
+export async function getEmployerAnalytics(employerId: string): Promise<any> {
+  // Get all jobs for this employer
+  const jobs = await listJobs({ employerId })
+  const jobIds = jobs.map((j) => j.id)
+
+  // Get all matches
+  const matchSnap = await adminDb.collection('matches').where('employerId', '==', employerId).get()
+  const matches = matchSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+
+  // Get all swipes on candidates
+  const swipeSnap = await adminDb.collection('swipes').where('swiperId', '==', employerId).get()
+  const swipes = swipeSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+
+  // Get all interviews
+  const interviewSnap = await adminDb.collection('interviews').where('employerId', '==', employerId).get()
+  const interviews = interviewSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+
+  // Calculate metrics
+  const totalJobs = jobs.length
+  const activeJobs = jobs.filter((j) => j.isPublished && !j.isArchived).length
+  const totalMatches = matches.length
+  const totalSwipes = swipes.length
+  const likesGiven = swipes.filter((s) => s.isLike).length
+  const likeRate = totalSwipes > 0 ? Math.round((likesGiven / totalSwipes) * 100) : 0
+  const matchRate = totalSwipes > 0 ? Math.round((totalMatches / totalSwipes) * 100) : 0
+
+  // Stage breakdown
+  const stageBreakdown: Record<string, number> = {}
+  for (const m of matches) {
+    const stage = m.stage || 'matched'
+    stageBreakdown[stage] = (stageBreakdown[stage] || 0) + 1
+  }
+
+  // Per-job performance
+  const jobPerformance = jobs.map((job) => {
+    const jobMatches = matches.filter((m) => m.jobId === job.id)
+    return {
+      jobId: job.id,
+      title: job.title,
+      matches: jobMatches.length,
+      stageBreakdown: jobMatches.reduce((acc: Record<string, number>, m) => {
+        const stage = m.stage || 'matched'
+        acc[stage] = (acc[stage] || 0) + 1
+        return acc
+      }, {}),
+    }
+  })
+
+  // Interview stats
+  const upcomingInterviews = interviews.filter((i) => {
+    return i.status === 'scheduled' && new Date(i.scheduledAt) > new Date()
+  })
+
+  return {
+    totalJobs,
+    activeJobs,
+    totalMatches,
+    totalSwipes,
+    likesGiven,
+    likeRate,
+    matchRate,
+    stageBreakdown,
+    jobPerformance,
+    totalInterviews: interviews.length,
+    upcomingInterviews: upcomingInterviews.length,
+  }
+}
+
+// ─── Swipe Insights (Candidate) ────────────────────────────
+
+export async function getCandidateInsights(candidateId: string): Promise<any> {
+  const swipes = await listSwipesBySwiper(candidateId)
+  const analytics = await getSwipeAnalytics(candidateId)
+  const matches = await listMatchesForUser(candidateId)
+
+  const totalSwipes = swipes.length
+  const totalLikes = swipes.filter((s) => s.isLike).length
+  const totalPasses = swipes.filter((s) => !s.isLike).length
+  const likeRate = totalSwipes > 0 ? Math.round((totalLikes / totalSwipes) * 100) : 0
+  const matchRate = totalLikes > 0 ? Math.round((matches.length / totalLikes) * 100) : 0
+
+  // Top liked skills
+  const topSkills = analytics
+    ? Object.entries(analytics.likedSkills || {})
+        .sort(([, a]: any, [, b]: any) => b - a)
+        .slice(0, 5)
+        .map(([skill, count]) => ({ skill, count }))
+    : []
+
+  // Top liked locations
+  const topLocations = analytics
+    ? Object.entries(analytics.likedLocations || {})
+        .sort(([, a]: any, [, b]: any) => b - a)
+        .slice(0, 5)
+        .map(([location, count]) => ({ location, count }))
+    : []
+
+  // Top liked job types
+  const topJobTypes = analytics
+    ? Object.entries(analytics.likedJobTypes || {})
+        .sort(([, a]: any, [, b]: any) => b - a)
+        .slice(0, 5)
+        .map(([type, count]) => ({ type, count }))
+    : []
+
+  return {
+    totalSwipes,
+    totalLikes,
+    totalPasses,
+    totalMatches: matches.length,
+    likeRate,
+    matchRate,
+    topSkills,
+    topLocations,
+    topJobTypes,
+  }
+}

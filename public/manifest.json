@@ -1,0 +1,30 @@
+{
+  "name": "Tinda — Swipe Your Way to the Perfect Job or Talent",
+  "short_name": "Tinda",
+  "description": "Match talent with opportunity. Swipe, match, and chat with top talent or dream jobs.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0a0a12",
+  "theme_color": "#9b22ee",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/tinda-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["business", "lifestyle"],
+  "screenshots": []
+}

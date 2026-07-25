@@ -11,10 +11,13 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/employer') ||
     request.nextUrl.pathname.startsWith('/chat') ||
     request.nextUrl.pathname.startsWith('/notifications') ||
-    request.nextUrl.pathname.startsWith('/settings')
+    request.nextUrl.pathname.startsWith('/settings') ||
+    request.nextUrl.pathname.startsWith('/interviews') ||
+    request.nextUrl.pathname.startsWith('/assessment')
 
-  // Public routes — company pages are public
-  const isPublic = request.nextUrl.pathname.startsWith('/company')
+  // Public routes — company pages and manifest
+  const isPublic = request.nextUrl.pathname.startsWith('/company') ||
+    request.nextUrl.pathname === '/manifest.json'
 
   if (isPublic) {
     return NextResponse.next()
@@ -41,6 +44,8 @@ export const config = {
     '/chat/:path*',
     '/notifications/:path*',
     '/settings/:path*',
+    '/interviews/:path*',
+    '/assessment/:path*',
     '/company/:path*',
     '/login',
     '/signup',
