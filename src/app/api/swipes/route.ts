@@ -1,6 +1,19 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { createConversation, createMatch, getCandidateProfile, getEmployerProfile, getJobById, getUserById, listCandidateUsers, listJobs, listSwipesBySwiper, saveSwipe, updateSwipe, UserType } from "@/lib/firebase";
+import {
+  createConversation,
+  createMatch,
+  getCandidateProfile,
+  getEmployerProfile,
+  getJobById,
+  getUserById,
+  listCandidateUsers,
+  listJobs,
+  listSwipesBySwiper,
+  saveSwipe,
+  updateSwipe,
+  UserType,
+} from "@/lib/firebase";
 import * as z from "zod";
 
 const swipeSchema = z.object({
@@ -12,23 +25,23 @@ const swipeSchema = z.object({
 });
 
 export async function GET(request: Request) {
-  const session = await auth();
-  const user = (session as any)?.user;
+  const session = await auth(request);
+  const user = session?.user;
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
   if (user.userType === UserType.Candidate) {
     const swipes = await listSwipesBySwiper(user.id);
-    const swipedJobIds = new Set(swipes.filter((swipe: any) => swipe.targetJobId).map((swipe: any) => swipe.targetJobId));
+    const swipedJobIds = new Set(swipes.filter((s) => s.targetJobId).map((s) => s.targetJobId));
     const jobs = await listJobs();
 
     const visibleJobs = jobs
-      .filter((job: any) => {
+      .filter((job) => {
         if (!job.isPublished || job.isArchived) return false;
         if (job.expiryDate && new Date(job.expiryDate) < new Date()) return false;
         return !swipedJobIds.has(job.id);
       })
       .slice(0, 20)
-      .map((job: any) => ({
+      .map((job) => ({
         id: job.id,
         title: job.title,
         description: job.description,
@@ -49,13 +62,13 @@ export async function GET(request: Request) {
 
   if (user.userType === UserType.Employer) {
     const swipes = await listSwipesBySwiper(user.id);
-    const swipedIds = new Set(swipes.map((swipe: any) => swipe.targetId));
+    const swipedIds = new Set(swipes.map((s) => s.targetId));
     const candidates = await listCandidateUsers();
 
     const visibleCandidates = (await Promise.all(
       candidates
-        .filter((candidate: any) => !swipedIds.has(candidate.id))
-        .map(async (candidate: any) => {
+        .filter((candidate) => !swipedIds.has(candidate.id))
+        .map(async (candidate) => {
           const profile = await getCandidateProfile(candidate.id);
           return {
             id: candidate.id,
@@ -65,10 +78,9 @@ export async function GET(request: Request) {
             yearsOfExperience: profile?.yearsOfExperience,
             skills: profile?.skills,
             education: profile?.education,
-            resumeScore: null,
             availability: "NotLooking",
           };
-        })
+        }),
     )).slice(0, 20);
 
     return NextResponse.json(visibleCandidates);
@@ -78,8 +90,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
-  const user = (session as any)?.user;
+  const session = await auth(request);
+  const user = session?.user;
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
   try {
@@ -87,7 +99,9 @@ export async function POST(request: Request) {
     const data = swipeSchema.parse(body);
 
     const swipes = await listSwipesBySwiper(user.id);
-    const existingSwipe = swipes.find((swipe: any) => swipe.targetId === data.targetId && (swipe.targetJobId ?? null) === (data.targetJobId ?? null));
+    const existingSwipe = swipes.find(
+      (s) => s.targetId === data.targetId && (s.targetJobId ?? null) === (data.targetJobId ?? null),
+    );
 
     const swipeData = {
       swiperId: user.id,
@@ -100,50 +114,59 @@ export async function POST(request: Request) {
     if (existingSwipe) {
       await updateSwipe(existingSwipe.id, swipeData);
     } else {
-      await saveSwipe({
-        swiperId: user.id,
-        targetId: data.targetId,
-        targetJobId: data.targetJobId ?? null,
-        isLike: data.isLike,
-        isSuperLike: data.isSuperLike,
-      });
+      await saveSwipe(swipeData);
     }
 
     let createdMatch = null;
 
+    // Candidate likes a job → check if the employer already liked this candidate
     if (data.targetType === "job" && user.userType === UserType.Candidate && data.isLike) {
       const job = await getJobById(data.targetId);
-
       if (job) {
         const employerProfile = await getEmployerProfile(job.employerId);
         if (employerProfile) {
-          const employerUser = await getUserById(employerProfile.userId);
-          if (employerUser) {
-            const employerSwipes = await listSwipesBySwiper(employerUser.id);
-            const employerSwipe = employerSwipes.find((swipe: any) => swipe.targetId === user.id && swipe.isLike);
+          // Use employerProfile.id (the profile doc id) — this is the same as job.employerId
+          const employerSwipes = await listSwipesBySwiper(employerProfile.id);
+          const employerSwipe = employerSwipes.find((s) => s.targetId === user.id && s.isLike);
 
-            if (employerSwipe) {
-              const match = await createMatch({ candidateId: user.id, employerId: employerUser.id, jobId: job.id });
-              createdMatch = match;
-              await createConversation({ matchId: match.id, participant1Id: user.id, participant2Id: employerUser.id });
-            }
+          if (employerSwipe) {
+            const match = await createMatch({
+              candidateId: user.id,
+              employerId: employerProfile.id,
+              jobId: job.id,
+            });
+            createdMatch = match;
+            await createConversation({
+              matchId: match.id,
+              participant1Id: user.id,
+              participant2Id: employerProfile.id,
+            });
           }
         }
       }
     }
 
+    // Employer likes a candidate → check if the candidate already liked any of this employer's jobs
     if (data.targetType === "candidate" && user.userType === UserType.Employer && data.isLike) {
       const employerProfile = await getEmployerProfile(user.id);
       if (employerProfile) {
         const candidateId = data.targetId;
         const candidateSwipes = await listSwipesBySwiper(candidateId);
 
-        for (const likedJob of candidateSwipes.filter((swipe: any) => swipe.isLike && swipe.targetJobId)) {
-          const job = await getJobById((likedJob as any).targetJobId);
+        for (const likedJob of candidateSwipes.filter((s) => s.isLike && s.targetJobId)) {
+          const job = await getJobById(likedJob.targetJobId!);
           if (job && job.employerId === employerProfile.id) {
-            const match = await createMatch({ candidateId, employerId: user.id, jobId: job.id });
+            const match = await createMatch({
+              candidateId,
+              employerId: employerProfile.id,
+              jobId: job.id,
+            });
             createdMatch = match;
-            await createConversation({ matchId: match.id, participant1Id: candidateId, participant2Id: user.id });
+            await createConversation({
+              matchId: match.id,
+              participant1Id: candidateId,
+              participant2Id: employerProfile.id,
+            });
           }
         }
       }

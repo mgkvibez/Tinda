@@ -10,7 +10,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import { useAuth } from "@/context/AuthContext";
 
@@ -41,7 +41,7 @@ export default function LoginPage() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Invalid credentials";
       console.error("Login error:", message);
-      alert("An unexpected error occurred. Please try again."); // Temporary alert
+      alert("Login failed. Please check your email and password.");
     } finally {
       setIsLoading(false);
     }
@@ -50,12 +50,10 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      router.push("/dashboard");
+      await signInWithGoogle();
     } catch (error) {
       console.error("Google sign-in error:", error);
-      alert("Failed to sign in with Google."); // Temporary alert
+      alert("Failed to sign in with Google.");
     } finally {
       setIsLoading(false);
     }

@@ -8,10 +8,10 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, Suspense } from "react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { auth, db } from "@/lib/firebase/client";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useAuth } from "@/context/AuthContext";
@@ -31,10 +31,11 @@ const signupSchema = z.object({
 
 type SignupFormInputs = z.infer<typeof signupSchema>;
 
-export function SignupForm() {
+function SignupFormInner() {
   const router = useRouter();
-  // Default to Candidate, can be overridden by query params if needed
-  const defaultUserType = "Candidate"; 
+  const searchParams = useSearchParams();
+  // Read ?type=employer from the URL to pre-select employer
+  const defaultUserType = searchParams.get("type") === "employer" ? "Employer" : "Candidate";
   const [isLoading, setIsLoading] = useState(false);
 
   const {
@@ -56,11 +57,11 @@ export function SignupForm() {
   const onSubmit = async (data: SignupFormInputs) => {
     setIsLoading(true);
     try {
-      // 1. Create User in Firebase Auth
+      // 1. Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
       const user = userCredential.user;
 
-      // 2. Create User Profile in Firestore (Password is NOT stored here)
+      // 2. Create user profile in Firestore
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         name: data.name,
@@ -71,11 +72,64 @@ export function SignupForm() {
         updatedAt: serverTimestamp(),
       });
 
-      console.log("Registration successful!");
+      // 3. Create role-specific profile
+      if (data.userType === "Candidate") {
+        await setDoc(doc(db, "candidateProfiles", user.uid), {
+          userId: user.uid,
+          fullName: data.name,
+          profilePicture: null,
+          phone: null,
+          location: null,
+          bio: null,
+          currentRole: null,
+          yearsOfExperience: null,
+          skills: [],
+          education: [],
+          certifications: [],
+          languages: [],
+          resumeUrl: null,
+          portfolioUrl: null,
+          linkedinUrl: null,
+          githubUrl: null,
+          desiredSalaryMin: null,
+          desiredSalaryMax: null,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      } else if (data.userType === "Employer") {
+        const employerRef = doc(db, "employerProfiles", user.uid);
+        await setDoc(employerRef, {
+          userId: user.uid,
+          companyName: null,
+          logo: null,
+          industry: null,
+          companySize: null,
+          website: null,
+          headquarters: null,
+          aboutCompany: null,
+          recruiterName: data.name,
+          recruiterPosition: null,
+          recruiterEmail: data.email,
+          recruiterPhone: null,
+          subscriptionTier: null,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+
+      // 4. Send email verification
+      await sendEmailVerification(user);
+
+      // 5. Redirect to dashboard
       router.push("/dashboard");
     } catch (error) {
-      console.error("An unexpected error occurred:", error);
-      alert("An unexpected error occurred. Please try again.");
+      console.error("Signup error:", error);
+      const message = error instanceof Error ? error.message : "An unexpected error occurred.";
+      if (message.includes("email-already-in-use")) {
+        alert("An account with this email already exists. Try logging in instead.");
+      } else {
+        alert("Signup failed. " + message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -108,60 +162,24 @@ export function SignupForm() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
           <Label htmlFor="name">Full Name</Label>
-          <Input
-            id="name"
-            type="text"
-            placeholder="John Doe"
-            {...register("name")}
-            className="mt-1"
-          />
-          {errors.name && (
-            <p className="text-destructive text-sm mt-1">{errors.name.message}</p>
-          )}
+          <Input id="name" type="text" placeholder="John Doe" {...register("name")} className="mt-1" />
+          {errors.name && <p className="text-destructive text-sm mt-1">{errors.name.message}</p>}
         </div>
-
         <div>
           <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="your@example.com"
-            {...register("email")}
-            className="mt-1"
-          />
-          {errors.email && (
-            <p className="text-destructive text-sm mt-1">{errors.email.message}</p>
-          )}
+          <Input id="email" type="email" placeholder="your@example.com" {...register("email")} className="mt-1" />
+          {errors.email && <p className="text-destructive text-sm mt-1">{errors.email.message}</p>}
         </div>
-
         <div>
           <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            type="password"
-            placeholder="••••••••"
-            {...register("password")}
-            className="mt-1"
-          />
-          {errors.password && (
-            <p className="text-destructive text-sm mt-1">{errors.password.message}</p>
-          )}
+          <Input id="password" type="password" placeholder="••••••••" {...register("password")} className="mt-1" />
+          {errors.password && <p className="text-destructive text-sm mt-1">{errors.password.message}</p>}
         </div>
-
         <div>
           <Label htmlFor="confirmPassword">Confirm Password</Label>
-          <Input
-            id="confirmPassword"
-            type="password"
-            placeholder="••••••••"
-            {...register("confirmPassword")}
-            className="mt-1"
-          />
-          {errors.confirmPassword && (
-            <p className="text-destructive text-sm mt-1">{errors.confirmPassword.message}</p>
-          )}
+          <Input id="confirmPassword" type="password" placeholder="••••••••" {...register("confirmPassword")} className="mt-1" />
+          {errors.confirmPassword && <p className="text-destructive text-sm mt-1">{errors.confirmPassword.message}</p>}
         </div>
-
         <div>
           <Label className="mb-3 block">Account Type</Label>
           <RadioGroup value={selectedUserType} onValueChange={(value) => setValue("userType", value as "Candidate" | "Employer")}>
@@ -174,11 +192,8 @@ export function SignupForm() {
               <Label htmlFor="employer" className="cursor-pointer">I'm an Employer</Label>
             </div>
           </RadioGroup>
-          {errors.userType && (
-            <p className="text-destructive text-sm mt-1">{errors.userType.message}</p>
-          )}
+          {errors.userType && <p className="text-destructive text-sm mt-1">{errors.userType.message}</p>}
         </div>
-
         <Button type="submit" className="w-full py-2.5 text-lg" disabled={isLoading}>
           {isLoading ? "Signing Up..." : "Sign Up"}
         </Button>
@@ -193,13 +208,7 @@ export function SignupForm() {
         </div>
       </div>
 
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full"
-        onClick={handleGoogleSignIn}
-        disabled={isLoading}
-      >
+      <Button type="button" variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading}>
         Sign Up with Google
       </Button>
 
@@ -210,5 +219,13 @@ export function SignupForm() {
         </Link>
       </p>
     </motion.div>
+  );
+}
+
+export function SignupForm() {
+  return (
+    <Suspense fallback={<div className="text-center py-10">Loading sign-up form...</div>}>
+      <SignupFormInner />
+    </Suspense>
   );
 }

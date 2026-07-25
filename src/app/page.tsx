@@ -4,14 +4,13 @@ import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect } from "react";
 
 export default function HomePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (user) {
@@ -85,7 +84,6 @@ export default function HomePage() {
         </motion.p>
       </motion.header>
 
-      {/* Optional: Add a subtle animation for the gradient shift */}
       <style jsx global>{`
         @keyframes gradient-shift {
           0% { background-position: 0% 50%; }
