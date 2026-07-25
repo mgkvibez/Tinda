@@ -1,55 +1,76 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can read/write their own user doc
+    // Users
     match /users/{uid} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == uid;
     }
 
-    // Candidate profiles: readable by authenticated users (employers need to see them)
-    // Writable only by the owner
+    // Candidate profiles
     match /candidateProfiles/{userId} {
       allow read: if request.auth != null;
       allow create, update, delete: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Employer profiles: readable by authenticated users (candidates need to see company info)
-    // Writable only by the owner
+    // Employer profiles
     match /employerProfiles/{profileId} {
       allow read: if request.auth != null;
-      allow create, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
     }
 
-    // Jobs: readable by all authenticated users (candidates need to browse)
-    // Writable only by the employer who owns the job
+    // Jobs
     match /jobs/{jobId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null && request.resource.data.employerId != null;
       allow update, delete: if request.auth != null && resource.data.employerId == request.auth.uid;
     }
 
-    // Swipes: readable/writable only by the swiper
+    // Swipes
     match /swipes/{swipeId} {
       allow read: if request.auth != null && resource.data.swiperId == request.auth.uid;
       allow create: if request.auth != null && request.resource.data.swiperId == request.auth.uid;
       allow update: if request.auth != null && resource.data.swiperId == request.auth.uid;
-      allow delete: if request.auth != null && resource.data.swiperId == request.auth.uid;
     }
 
-    // Matches: readable by participants
+    // Matches
     match /matches/{matchId} {
       allow read: if request.auth != null && (resource.data.candidateId == request.auth.uid || resource.data.employerId == request.auth.uid);
       allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && (resource.data.candidateId == request.auth.uid || resource.data.employerId == request.auth.uid);
     }
 
-    // Conversations: readable by participants
+    // Conversations
     match /conversations/{conversationId} {
       allow read: if request.auth != null && (resource.data.participant1Id == request.auth.uid || resource.data.participant2Id == request.auth.uid);
       allow create: if request.auth != null;
       allow update: if request.auth != null && (resource.data.participant1Id == request.auth.uid || resource.data.participant2Id == request.auth.uid);
+    }
+
+    // Messages — participants can read and write in their conversations
+    match /messages/{messageId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.senderId == request.auth.uid;
+      allow update: if request.auth != null;
+    }
+
+    // Notifications — users can read and update their own notifications
+    match /notifications/{notificationId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // Badges — system creates, users read their own
+    match /badges/{badgeId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null;
+    }
+
+    // Swipe Analytics — users read and update their own
+    match /swipeAnalytics/{userId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create, update: if request.auth != null && request.auth.uid == userId;
     }
   }
 }
