@@ -346,6 +346,12 @@ export default function DashboardPage() {
                   <p className="text-sm font-medium">Interviews</p>
                 </div>
               </Link>
+              <Link href="/candidate/resume-builder" className="group">
+                <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+                  <div className="text-2xl mb-1">📄</div>
+                  <p className="text-sm font-medium">Resume Builder</p>
+                </div>
+              </Link>
             </div>
 
             {/* Conversations */}
