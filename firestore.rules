@@ -38,6 +38,7 @@ service cloud.firestore {
     match /matches/{matchId} {
       allow read: if request.auth != null && (resource.data.candidateId == request.auth.uid || resource.data.employerId == request.auth.uid);
       allow create: if request.auth != null;
+      allow update: if request.auth != null && (resource.data.candidateId == request.auth.uid || resource.data.employerId == request.auth.uid);
     }
 
     // Conversations
@@ -47,30 +48,62 @@ service cloud.firestore {
       allow update: if request.auth != null && (resource.data.participant1Id == request.auth.uid || resource.data.participant2Id == request.auth.uid);
     }
 
-    // Messages — participants can read and write in their conversations
+    // Messages
     match /messages/{messageId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null && request.resource.data.senderId == request.auth.uid;
       allow update: if request.auth != null;
     }
 
-    // Notifications — users can read and update their own notifications
+    // Notifications
     match /notifications/{notificationId} {
       allow read: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null;
       allow update: if request.auth != null && resource.data.userId == request.auth.uid;
     }
 
-    // Badges — system creates, users read their own
+    // Badges
     match /badges/{badgeId} {
       allow read: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null;
     }
 
-    // Swipe Analytics — users read and update their own
+    // Swipe Analytics
     match /swipeAnalytics/{userId} {
       allow read: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create, update: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Interviews
+    match /interviews/{interviewId} {
+      allow read: if request.auth != null && (resource.data.candidateId == request.auth.uid || resource.data.employerId == request.auth.uid);
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && (resource.data.candidateId == request.auth.uid || resource.data.employerId == request.auth.uid);
+    }
+
+    // Assessments
+    match /assessments/{assessmentId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+    }
+
+    // Assessment Results
+    match /assessmentResults/{resultId} {
+      allow read: if request.auth != null && resource.data.candidateId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.candidateId == request.auth.uid;
+    }
+
+    // Saved Jobs
+    match /savedJobs/{savedJobId} {
+      allow read: if request.auth != null && resource.data.candidateId == request.auth.uid;
+      allow create, delete: if request.auth != null && (resource.data.candidateId == request.auth.uid || request.resource.data.candidateId == request.auth.uid);
+    }
+
+    // Job Alerts
+    match /jobAlerts/{alertId} {
+      allow read: if request.auth != null && resource.data.candidateId == request.auth.uid;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && resource.data.candidateId == request.auth.uid;
     }
   }
 }
