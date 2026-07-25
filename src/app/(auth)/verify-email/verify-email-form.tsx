@@ -5,43 +5,36 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { applyActionCode } from "firebase/auth";
+import { auth } from "@/lib/firebase/client";
 
 export default function VerifyEmailForm() {
   const searchParams = useSearchParams();
-  const token = searchParams.get("token");
-  const [verificationStatus, setVerificationStatus] = useState<"loading" | "success" | "error">(
-    "loading"
-  );
+  const oobCode = searchParams.get("oobCode");
+  const [verificationStatus, setVerificationStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
     const verifyEmail = async () => {
-      if (!token) {
+      if (!oobCode) {
         setVerificationStatus("error");
-        setMessage("No verification token found.");
+        setMessage("No verification code found. Please click the link in your email.");
         return;
       }
 
       try {
-        console.log("Verifying email with token:", token);
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-
-        if (token === "valid-token") {
-          setVerificationStatus("success");
-          setMessage("Your email has been successfully verified!");
-        } else {
-          setVerificationStatus("error");
-          setMessage("Invalid or expired verification link.");
-        }
+        await applyActionCode(auth, oobCode);
+        setVerificationStatus("success");
+        setMessage("Your email has been successfully verified!");
       } catch (error) {
         console.error("Email verification error:", error);
         setVerificationStatus("error");
-        setMessage("An error occurred during verification. Please try again.");
+        setMessage("Invalid or expired verification link. Please request a new one.");
       }
     };
 
     verifyEmail();
-  }, [token]);
+  }, [oobCode]);
 
   return (
     <motion.div
