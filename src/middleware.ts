@@ -8,15 +8,23 @@ export async function middleware(request: NextRequest) {
   const isAuthPage = request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup'
   const isProtected = request.nextUrl.pathname.startsWith('/dashboard') ||
     request.nextUrl.pathname.startsWith('/candidate') ||
-    request.nextUrl.pathname.startsWith('/employer')
+    request.nextUrl.pathname.startsWith('/employer') ||
+    request.nextUrl.pathname.startsWith('/chat') ||
+    request.nextUrl.pathname.startsWith('/notifications') ||
+    request.nextUrl.pathname.startsWith('/settings')
 
-  // Redirect to login if accessing protected routes without a session
+  // Public routes — company pages are public
+  const isPublic = request.nextUrl.pathname.startsWith('/company')
+
+  if (isPublic) {
+    return NextResponse.next()
+  }
+
   if (!session && isProtected) {
     const loginUrl = new URL('/login', request.url)
     return NextResponse.redirect(loginUrl)
   }
 
-  // Redirect to dashboard if logged in and accessing auth pages
   if (session && isAuthPage) {
     const dashboardUrl = new URL('/dashboard', request.url)
     return NextResponse.redirect(dashboardUrl)
@@ -26,5 +34,15 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/candidate/:path*', '/employer/:path*', '/login', '/signup'],
+  matcher: [
+    '/dashboard/:path*',
+    '/candidate/:path*',
+    '/employer/:path*',
+    '/chat/:path*',
+    '/notifications/:path*',
+    '/settings/:path*',
+    '/company/:path*',
+    '/login',
+    '/signup',
+  ],
 }
