@@ -5,11 +5,28 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { DarkModeToggle } from "@/components/dark-mode-toggle";
+import { NotificationBell } from "@/components/notification-bell";
+import { StreakBadge } from "@/components/streak-badge";
+import { auth } from "@/lib/firebase/client";
+import { getIdToken } from "firebase/auth";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase/client";
 
 export default function Header() {
   const { user, logout } = useAuth();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [streak, setStreak] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    const unsub = onSnapshot(doc(db, "users", user.uid), (doc) => {
+      if (doc.exists()) {
+        setStreak(doc.data()?.streak || 0);
+      }
+    });
+    return () => unsub();
+  }, [user]);
 
   return (
     <header className="w-full border-b border-border bg-card/40 backdrop-blur-sm sticky top-0 z-50">
@@ -19,11 +36,21 @@ export default function Header() {
           <span className="text-lg font-semibold tracking-tight text-foreground hidden sm:inline">Tinda</span>
         </Link>
 
-        <nav className="flex items-center gap-4">
+        <nav className="flex items-center gap-2">
           {user ? (
             <>
+              {streak > 0 && (
+                <div className="hidden sm:block">
+                  <StreakBadge streak={streak} />
+                </div>
+              )}
+              <NotificationBell />
+              <DarkModeToggle />
               <Button asChild variant="ghost" size="sm">
                 <Link href="/dashboard">Dashboard</Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/settings">Settings</Link>
               </Button>
               <Button variant="outline" size="sm" onClick={() => logout()}>
                 Log Out
@@ -31,6 +58,7 @@ export default function Header() {
             </>
           ) : (
             <>
+              <DarkModeToggle />
               <Button asChild variant="ghost" size="sm">
                 <Link href="/login">Log In</Link>
               </Button>
