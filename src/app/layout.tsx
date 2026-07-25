@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Geist } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 export const metadata: Metadata = {
   title: "Tinda - Swipe Your Way to the Perfect Job or Talent",
   description: "Tinda: Match talent with opportunity. Swipe, match, and chat with top talent or dream jobs.",
+  manifest: "/manifest.json",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
@@ -37,6 +38,14 @@ export const metadata: Metadata = {
     description: "Swipe Your Way to the Perfect Job or Talent",
     images: ["https://images.pexels.com/photos/3184433/pexels-photo-3184433.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"],
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#9b22ee",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
