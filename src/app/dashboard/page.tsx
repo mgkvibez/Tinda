@@ -320,6 +320,34 @@ export default function DashboardPage() {
               </Link>
             </div>
 
+            {/* Quick Links */}
+            <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+              <Link href="/candidate/insights" className="group">
+                <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+                  <div className="text-2xl mb-1">📊</div>
+                  <p className="text-sm font-medium">Insights</p>
+                </div>
+              </Link>
+              <Link href="/candidate/saved" className="group">
+                <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+                  <div className="text-2xl mb-1">📌</div>
+                  <p className="text-sm font-medium">Saved Jobs</p>
+                </div>
+              </Link>
+              <Link href="/candidate/alerts" className="group">
+                <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+                  <div className="text-2xl mb-1">🔔</div>
+                  <p className="text-sm font-medium">Job Alerts</p>
+                </div>
+              </Link>
+              <Link href="/interviews" className="group">
+                <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+                  <div className="text-2xl mb-1">📅</div>
+                  <p className="text-sm font-medium">Interviews</p>
+                </div>
+              </Link>
+            </div>
+
             {/* Conversations */}
             <div className="rounded-3xl border border-border bg-card p-5">
               <h2 className="font-semibold mb-3">Recent Conversations</h2>

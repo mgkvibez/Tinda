@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/firebase/client";
 import { getIdToken } from "firebase/auth";
+import { ShareButtons } from "@/components/share-buttons";
+import Link from "next/link";
 
 type JobCard = {
   id: string;
@@ -34,10 +36,19 @@ export default function CandidateSwipePage() {
   const [streak, setStreak] = useState(0);
   const [coverLetter, setCoverLetter] = useState<string | null>(null);
   const [generatingCover, setGeneratingCover] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [hasAssessment, setHasAssessment] = useState(false);
 
   useEffect(() => {
     fetchJobs();
   }, []);
+
+  useEffect(() => {
+    if (cards[current]) {
+      checkSaved();
+      checkAssessment();
+    }
+  }, [current, cards]);
 
   const fetchJobs = async () => {
     try {
@@ -59,6 +70,40 @@ export default function CandidateSwipePage() {
       setError("Failed to load jobs. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkSaved = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user || !cards[current]) return;
+      const token = await getIdToken(user);
+      const res = await fetch(`/api/saved-jobs?jobId=${cards[current].jobId}`, {
+        headers: { Cookie: `__session=${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setIsSaved(data.saved || false);
+      }
+    } catch {
+      setIsSaved(false);
+    }
+  };
+
+  const checkAssessment = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user || !cards[current]) return;
+      const token = await getIdToken(user);
+      const res = await fetch(`/api/assessments?jobId=${cards[current].jobId}`, {
+        headers: { Cookie: `__session=${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setHasAssessment(!!data.assessment);
+      }
+    } catch {
+      setHasAssessment(false);
     }
   };
 
@@ -87,7 +132,6 @@ export default function CandidateSwipePage() {
         const data = await res.json();
         if (data.streak !== undefined) setStreak(data.streak);
         if (data.match) {
-          // Show match notification
           alert("🎉 It's a match! Check your messages!");
         }
       }
@@ -97,8 +141,26 @@ export default function CandidateSwipePage() {
 
     setTimeout(() => {
       setSwipeDirection(null);
+      setCoverLetter(null);
       setCurrent((prev) => prev + 1);
     }, 300);
+  };
+
+  const handleSave = async () => {
+    if (!cards[current]) return;
+    const user = auth.currentUser;
+    if (!user) return;
+    const token = await getIdToken(user);
+    try {
+      await fetch("/api/saved-jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Cookie: `__session=${token}` },
+        body: JSON.stringify({ jobId: cards[current].jobId, action: isSaved ? "unsave" : "save" }),
+      });
+      setIsSaved(!isSaved);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleGenerateCoverLetter = async () => {
@@ -169,21 +231,39 @@ export default function CandidateSwipePage() {
           className="w-full max-w-xl"
         >
           <div className="rounded-3xl border border-border bg-card p-8 shadow-2xl">
-            {/* Match Score Badge */}
-            {card.matchScore >= 60 && (
-              <div className="flex items-center justify-between mb-4">
-                <div className={`inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium ${matchScoreColor}`}>
-                  ⭐ {card.matchScore}% match
-                </div>
-                {card.matchReasons.length > 0 && (
-                  <div className="flex flex-wrap gap-1 justify-end">
-                    {card.matchReasons.map((reason, i) => (
-                      <span key={i} className="rounded-full bg-muted px-2 py-0.5 text-xs text-textSecondary">
-                        {reason}
-                      </span>
-                    ))}
+            {/* Top Row: Match Score + Save + Share */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                {card.matchScore >= 60 && (
+                  <div className={`inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium ${matchScoreColor}`}>
+                    ⭐ {card.matchScore}%
                   </div>
                 )}
+                {hasAssessment && (
+                  <Link href={`/assessment/${card.jobId}`}>
+                    <span className="rounded-full bg-accent/20 px-3 py-1 text-xs font-medium text-accent-foreground hover:underline">
+                      📝 Take Assessment
+                    </span>
+                  </Link>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={handleSave} className="rounded-full p-2 hover:bg-muted transition-colors" title={isSaved ? "Saved" : "Save for later"}>
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill={isSaved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" />
+                  </svg>
+                </button>
+                <ShareButtons jobTitle={card.title} companyName={card.companyName || ""} jobId={card.jobId} />
+              </div>
+            </div>
+
+            {card.matchReasons.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-4">
+                {card.matchReasons.map((reason, i) => (
+                  <span key={i} className="rounded-full bg-muted px-2 py-0.5 text-xs text-textSecondary">
+                    {reason}
+                  </span>
+                ))}
               </div>
             )}
 
