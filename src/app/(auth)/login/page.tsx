@@ -10,7 +10,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import { useAuth } from "@/context/AuthContext";
 
@@ -36,7 +36,12 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormInputs) => {
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, data.email, data.password);
+      const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+      // Set the __session cookie immediately before navigating,
+      // to avoid a race condition where middleware redirects to /login
+      // because the cookie hasn't been set yet by onAuthStateChanged.
+      const token = await userCredential.user.getIdToken();
+      document.cookie = `__session=${token}; path=/; Secure; SameSite=Strict; max-age=3600`;
       router.push("/dashboard");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Invalid credentials";
@@ -138,7 +143,7 @@ export default function LoginPage() {
             fill="#4285F4"
           />
           <path
-            d="M6.00033 14.8901C5.70033 14.0901 5.53133 13.1901 5.53133 12.2401C5.53133 11.2901 5.70033 10.3901 6.00033 9.5901L2.22133 6.6201C1.10033 8.8401 0.5 10.4901 0.5 12.2401C0.5 13.9901 1.10033 15.6401 2.22133 17.8601L6.00033 14.8901Z"
+            d="M6.00033 14.8901C5.70033 14.0901 5.53133 13.1901 5.53133 11.2901 5.53133 10.3901 5.70033 9.5901L2.22133 6.6201C1.10033 8.8401 0.5 10.4901 0.5 12.2401C0.5 13.9901 1.10033 15.6401 2.22133 17.8601L6.00033 14.8901Z"
             fill="#FBBC05"
           />
           <path

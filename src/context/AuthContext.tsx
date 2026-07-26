@@ -82,6 +82,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const result = await signInWithPopup(auth, provider)
       const googleUser = result.user
 
+      // Set session cookie immediately before navigating
+      const token = await googleUser.getIdToken()
+      document.cookie = `__session=${token}; path=/; Secure; SameSite=Strict; max-age=3600`
+
       // Check if the user already has a Firestore doc
       const userDocRef = doc(db, 'users', googleUser.uid)
       const userDoc = await getDoc(userDocRef)

@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { auth } from '@/lib/auth'
 
+/**
+ * Lightweight middleware — runs on the Edge runtime.
+ * Only checks for the presence of a __session cookie.
+ * Full Firebase ID token verification happens in API route handlers
+ * (which run in the Node.js runtime) via the auth() function.
+ */
 export async function middleware(request: NextRequest) {
-  const session = await auth(request as any)
+  const sessionCookie = request.cookies.get('__session')?.value
 
   const isAuthPage = request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup'
   const isProtected = request.nextUrl.pathname.startsWith('/dashboard') ||
@@ -24,12 +29,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  if (!session && isProtected) {
+  if (!sessionCookie && isProtected) {
     const loginUrl = new URL('/login', request.url)
     return NextResponse.redirect(loginUrl)
   }
 
-  if (session && isAuthPage) {
+  if (sessionCookie && isAuthPage) {
     const dashboardUrl = new URL('/dashboard', request.url)
     return NextResponse.redirect(dashboardUrl)
   }

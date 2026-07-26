@@ -23,8 +23,8 @@ const candidateSchema = z.object({
   desiredSalaryMax: z.number().int().nullable().optional(),
 });
 
-export async function GET() {
-  const session = await auth();
+export async function GET(request: Request) {
+  const session = await auth(request);
   const user = (session as any)?.user;
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
@@ -33,7 +33,7 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const session = await auth();
+  const session = await auth(request);
   const user = (session as any)?.user;
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
