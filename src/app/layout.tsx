@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import Header from "@/components/header";
+import { Analytics } from "@vercel/analytics/next";
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -62,6 +63,7 @@ export default function RootLayout({
             {children}
           </AuthProvider>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
