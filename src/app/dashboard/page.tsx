@@ -376,6 +376,54 @@ export default function DashboardPage() {
                   <p className="text-sm font-medium">Offers</p>
                 </div>
               </Link>
+              <Link href="/candidate/career-coach" className="group">
+                <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+                  <div className="text-2xl mb-1">🤖</div>
+                  <p className="text-sm font-medium">AI Career Coach</p>
+                </div>
+              </Link>
+              <Link href="/candidate/red-flags" className="group">
+                <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+                  <div className="text-2xl mb-1">🚩</div>
+                  <p className="text-sm font-medium">Red Flag Detector</p>
+                </div>
+              </Link>
+              <Link href="/candidate/skills-gap" className="group">
+                <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+                  <div className="text-2xl mb-1">📊</div>
+                  <p className="text-sm font-medium">Skills Gap</p>
+                </div>
+              </Link>
+              <Link href="/candidate/negotiation" className="group">
+                <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+                  <div className="text-2xl mb-1">💰</div>
+                  <p className="text-sm font-medium">Salary Negotiation</p>
+                </div>
+              </Link>
+              <Link href="/candidate/career-path" className="group">
+                <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+                  <div className="text-2xl mb-1">🛤️</div>
+                  <p className="text-sm font-medium">Career Path</p>
+                </div>
+              </Link>
+              <Link href="/candidate/resume-tailor" className="group">
+                <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+                  <div className="text-2xl mb-1">✨</div>
+                  <p className="text-sm font-medium">Resume Tailor</p>
+                </div>
+              </Link>
+              <Link href="/candidate/peer-benchmark" className="group">
+                <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+                  <div className="text-2xl mb-1">📈</div>
+                  <p className="text-sm font-medium">Peer Benchmark</p>
+                </div>
+              </Link>
+              <Link href="/candidate/flashcards" className="group">
+                <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+                  <div className="text-2xl mb-1">🃏</div>
+                  <p className="text-sm font-medium">Interview Flashcards</p>
+                </div>
+              </Link>
             </div>
 
             {/* Conversations */}
