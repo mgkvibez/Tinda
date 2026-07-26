@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { getJobById, getCandidateProfile, getEmployerProfile } from '@/lib/firebase'
+import { getJobById, getCandidateProfile, getEmployerProfileById } from '@/lib/firebase'
 import { generateCoverLetter } from '@/lib/cover-letter'
 
 export async function POST(request: Request) {
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Please complete your profile first' }, { status: 400 })
     }
 
-    const employer = await getEmployerProfile(job.employerId)
+    const employer = await getEmployerProfileById(job.employerId)
 
     const coverLetter = generateCoverLetter(job, candidate, employer)
 

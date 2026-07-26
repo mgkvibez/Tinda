@@ -5,6 +5,7 @@ import {
   createMatch,
   getCandidateProfile,
   getEmployerProfile,
+  getEmployerProfileById,
   getJobById,
   getUserById,
   listCandidateUsers,
@@ -147,26 +148,27 @@ export async function POST(request: Request) {
     if (data.targetType === 'job' && user.userType === UserType.Candidate && data.isLike) {
       const job = await getJobById(data.targetId)
       if (job) {
-        const employerProfile = await getEmployerProfile(job.employerId)
+        const employerProfile = await getEmployerProfileById(job.employerId)
         if (employerProfile) {
-          const employerSwipes = await listSwipesBySwiper(employerProfile.id)
+          const employerSwipes = await listSwipesBySwiper(employerProfile.userId)
           const employerSwipe = employerSwipes.find((s) => s.targetId === user.id && s.isLike)
 
           if (employerSwipe) {
             const match = await createMatch({
               candidateId: user.id,
-              employerId: employerProfile.id,
+              employerId: employerProfile.userId,
               jobId: job.id,
             })
             createdMatch = match
             const conv = await createConversation({
               matchId: match.id,
               participant1Id: user.id,
-              participant2Id: employerProfile.id,
+              participant2Id: employerProfile.userId,
             })
 
-            // Update match counts
-            await updateUserFields(user.id, { totalMatches: (await getUserById(user.id))?.totalMatches || 0 + 1 })
+            // Update match counts (fix: operator precedence bug)
+            const currentUser = await getUserById(user.id)
+            await updateUserFields(user.id, { totalMatches: (currentUser?.totalMatches || 0) + 1 })
 
             // Notify both parties
             await createNotification({
@@ -177,7 +179,7 @@ export async function POST(request: Request) {
               data: { matchId: match.id, conversationId: conv.id, jobId: job.id },
             })
             await createNotification({
-              userId: employerProfile.id,
+              userId: employerProfile.userId,
               type: 'new_match',
               title: 'New Match!',
               body: `A candidate matched with your ${job.title} position!`,
@@ -200,14 +202,14 @@ export async function POST(request: Request) {
           if (job && job.employerId === employerProfile.id) {
             const match = await createMatch({
               candidateId,
-              employerId: employerProfile.id,
+              employerId: user.id,
               jobId: job.id,
             })
             createdMatch = match
             const conv = await createConversation({
               matchId: match.id,
               participant1Id: candidateId,
-              participant2Id: employerProfile.id,
+              participant2Id: user.id,
             })
 
             // Notify both parties

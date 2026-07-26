@@ -120,7 +120,11 @@ function SignupFormInner() {
       // 4. Send email verification
       await sendEmailVerification(user);
 
-      // 5. Redirect to dashboard
+      // 5. Set session cookie before navigating (avoid login redirect race)
+      const token = await user.getIdToken();
+      document.cookie = `__session=${token}; path=/; Secure; SameSite=Strict; max-age=3600`;
+
+      // 6. Redirect to dashboard
       router.push("/dashboard");
     } catch (error) {
       console.error("Signup error:", error);
