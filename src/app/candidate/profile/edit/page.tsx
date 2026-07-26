@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { ProfileCompletionMeter } from "@/components/profile-completion-meter";
 import { calculateCandidateCompletion } from "@/lib/profile-completion";
+import type { CandidateProfile } from "@/lib/firebase";
 import { auth, db } from "@/lib/firebase/client";
 import { getIdToken } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -142,7 +143,7 @@ export default function CandidateProfileEdit() {
 
   if (loading) return <p className="text-center py-8 text-textSecondary">Loading...</p>;
 
-  const completion = calculateCandidateCompletion({ ...profileData, videoIntroUrl: videoUrl } || null);
+  const completion = calculateCandidateCompletion({ ...profileData, videoIntroUrl: videoUrl } as CandidateProfile);
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">

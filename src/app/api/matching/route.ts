@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     const analytics = await getSwipeAnalytics(user.id)
     const profile = await getCandidateProfile(user.id)
     const swipes = await listSwipesBySwiper(user.id)
-    const swipedJobIds = new Set(swipes.filter((s) => s.targetJobId).map((s) => s.targetJobId))
+    const swipedJobIds = new Set<string>(swipes.filter((s) => s.targetJobId).map((s) => s.targetJobId as string))
 
     const scored = scoreJobsForCandidate(jobs, analytics, profile, swipedJobIds)
 

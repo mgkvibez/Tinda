@@ -120,6 +120,7 @@ export interface CandidateProfile {
   lat?: number | null
   lng?: number | null
   availability?: string | null
+  email?: string | null
 }
 
 export interface EmployerProfile {
@@ -405,11 +406,12 @@ export async function saveMessage(data: Omit<MessageRecord, 'id'>): Promise<Mess
 export async function markMessagesRead(conversationId: string, userId: string): Promise<void> {
   const snap = await adminDb.collection('messages')
     .where('conversationId', '==', conversationId)
-    .where('senderId', '!=', userId)
     .where('read', '==', false)
     .get()
   const batch = adminDb.batch()
-  snap.docs.forEach((doc) => batch.set(doc.ref, { read: true }, { merge: true }))
+  snap.docs
+    .filter((doc) => (doc.data() as { senderId?: string }).senderId !== userId)
+    .forEach((doc) => batch.set(doc.ref, { read: true }, { merge: true }))
   await batch.commit()
 }
 
@@ -461,7 +463,7 @@ export async function updateStreak(userId: string): Promise<{ streak: number; is
   const userDoc = await adminDb.collection('users').doc(userId).get()
   if (!userDoc.exists) return { streak: 0, isNewDay: false }
 
-  const userData = userDoc.data()
+  const userData = userDoc.data()!
   const today = new Date().toISOString().split('T')[0]
   const lastSwipe = userData.lastSwipeDate?.split('T')[0]
 
@@ -656,7 +658,7 @@ export async function updateMatchStage(
 
 export async function getEmployerPipeline(employerId: string): Promise<any[]> {
   const snap = await adminDb.collection('matches').where('employerId', '==', employerId).get()
-  const matches = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+  const matches = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Record<string, any>))
   // Enrich with candidate profiles
   const enriched = []
   for (const m of matches) {
@@ -669,7 +671,7 @@ export async function getEmployerPipeline(employerId: string): Promise<any[]> {
 
 export async function getCandidateApplications(candidateId: string): Promise<any[]> {
   const snap = await adminDb.collection('matches').where('candidateId', '==', candidateId).get()
-  const matches = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+  const matches = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Record<string, any>))
   const enriched = []
   for (const m of matches) {
     const job = await getJobById(m.jobId)
@@ -887,15 +889,15 @@ export async function getEmployerAnalytics(employerId: string): Promise<any> {
 
   // Get all matches
   const matchSnap = await adminDb.collection('matches').where('employerId', '==', employerId).get()
-  const matches = matchSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+  const matches = matchSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Record<string, any>))
 
   // Get all swipes on candidates
   const swipeSnap = await adminDb.collection('swipes').where('swiperId', '==', employerId).get()
-  const swipes = swipeSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+  const swipes = swipeSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Record<string, any>))
 
   // Get all interviews
   const interviewSnap = await adminDb.collection('interviews').where('employerId', '==', employerId).get()
-  const interviews = interviewSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+  const interviews = interviewSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Record<string, any>))
 
   // Calculate metrics
   const totalJobs = jobs.length

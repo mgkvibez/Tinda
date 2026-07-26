@@ -50,6 +50,9 @@ export async function POST(request: Request) {
 
     const interview = await scheduleInterview({
       ...data,
+      location: data.location ?? null,
+      meetingUrl: data.meetingUrl ?? null,
+      notes: data.notes ?? null,
       status: 'scheduled',
     })
 

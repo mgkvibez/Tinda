@@ -6,7 +6,7 @@
 
 - **`src/lib/auth.ts`** — `auth()` now verifies a Firebase ID token from the `__session` cookie via the Admin SDK, returning `{ user } | null`. Every API route already expected this shape.
 - **`src/context/AuthContext.tsx`** — Single context (merged the orphaned root duplicate). Syncs ID token to cookie on sign-in and token refresh. Exposes `logout` + `signInWithGoogle`. Google sign-in now creates a Firestore user doc.
-- **`src/middleware.ts`** — Was named `proxy.ts` (Next.js ignored it). Now properly named, protects `/dashboard`, `/candidate`, `/employer`.
+- **`src/proxy.ts`** — Next.js 16 middleware file (renamed from `middleware.ts`). Protects `/dashboard`, `/candidate`, `/employer`, `/admin`, and other authenticated routes.
 - **Deleted:** `[...nextauth]/route.ts`, `auth/register/route.ts`, `next-auth` from package.json, `SessionProvider`, `next-auth.d.ts`, `src/lib/db.ts`, `src/lib/user-types.ts`, root-level `tinda.ts`, `user.ts`, `AuthContext.tsx`, `src/app/tinda.ts`, `src/app/user.ts`, `src/app/index.ts`, `next.config.js`.
 
 ### Bugs That Would Have Silently Broken Matching
