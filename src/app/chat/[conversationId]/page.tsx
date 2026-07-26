@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { auth, db } from "@/lib/firebase/client";
 import { getIdToken } from "firebase/auth";
 import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, doc, updateDoc } from "firebase/firestore";
+import { scanMessageClient } from "@/lib/safe-chat-client";
 import Link from "next/link";
 
 type Message = {
@@ -27,6 +28,11 @@ export default function ChatPage() {
   const [text, setText] = useState("");
   const [otherUserName, setOtherUserName] = useState("Chat");
   const [loading, setLoading] = useState(true);
+  const [otherUserId, setOtherUserId] = useState("");
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reporting, setReporting] = useState(false);
+  const [activeWarnings, setActiveWarnings] = useState<Array<{ type: string; message: string; severity: string }>>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -49,6 +55,7 @@ export default function ChatPage() {
         if (data.conversation) {
           const conv = data.conversation;
           const otherId = conv.participant1Id === user.uid ? conv.participant2Id : conv.participant1Id;
+          setOtherUserId(otherId);
           // Try to get the other user's name
           try {
             const userRes = await fetch(`/api/chat/${conversationId}`, {
@@ -150,6 +157,11 @@ export default function ChatPage() {
           <span className="text-sm font-medium">{otherUserName[0]}</span>
         </div>
         <h2 className="font-semibold">{otherUserName}</h2>
+        <div className="ml-auto flex gap-2">
+          <button onClick={() => setShowReportModal(true)} className="text-textSecondary hover:text-red-500 transition-colors text-sm" title="Report">
+            🚩
+          </button>
+        </div>
       </div>
 
       {/* Messages */}
@@ -206,6 +218,72 @@ export default function ChatPage() {
           Send
         </Button>
       </div>
+      {/* Safety Warnings */}
+      {activeWarnings.length > 0 && (
+        <div className="px-4 py-2 bg-red-50 border-t border-red-200">
+          {activeWarnings.map((w, i) => (
+            <div key={i} className="text-xs text-red-700 flex items-start gap-1">
+              <span>⚠️</span> {w.message}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Report Modal */}
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-card rounded-2xl p-6 max-w-sm w-full space-y-4">
+            <h3 className="text-lg font-bold">Report {otherUserName}</h3>
+            <p className="text-sm text-textSecondary">Help keep Tinda safe. Why are you reporting this user?</p>
+            <select
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
+            >
+              <option value="">Select a reason...</option>
+              <option value="scam">Scam or fraud</option>
+              <option value="fake_profile">Fake profile</option>
+              <option value="harassment">Harassment</option>
+              <option value="spam">Spam</option>
+              <option value="inappropriate">Inappropriate content</option>
+              <option value="other">Other</option>
+            </select>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => { setShowReportModal(false); setReportReason(""); }}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                disabled={!reportReason || reporting}
+                onClick={async () => {
+                  if (!otherUserId || !reportReason) return;
+                  setReporting(true);
+                  try {
+                    const token = await getIdToken(auth.currentUser!);
+                    await fetch("/api/report-block", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                      body: JSON.stringify({ action: "report", targetType: "user", targetId: otherUserId, reason: reportReason }),
+                    });
+                    await fetch("/api/report-block", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                      body: JSON.stringify({ action: "block", targetId: otherUserId }),
+                    });
+                    setShowReportModal(false);
+                    window.location.href = "/dashboard";
+                  } catch {
+                    setReporting(false);
+                  }
+                }}
+              >
+                {reporting ? "Reporting..." : "Report & Block"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

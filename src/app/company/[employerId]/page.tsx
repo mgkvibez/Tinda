@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { db } from "@/lib/firebase/client";
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, addDoc, orderBy, serverTimestamp } from "firebase/firestore";
 import { auth } from "@/lib/firebase/client";
 import { getIdToken } from "firebase/auth";
 import { VerifiedBadge } from "@/components/verified-badge";
@@ -46,6 +46,61 @@ export default function CompanyPage() {
   const [company, setCompany] = useState<CompanyData | null>(null);
   const [jobs, setJobs] = useState<JobItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reviews, setReviews] = useState<Array<{
+    id: string; reviewerName: string; rating: number; title: string;
+    pros: string; cons: string; createdAt: any; isAnonymous: boolean;
+  }>>([]);
+  const [reviewCount, setReviewCount] = useState(0);
+  const [avgRating, setAvgRating] = useState(0);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewForm, setReviewForm] = useState({ rating: 5, title: '', pros: '', cons: '', isAnonymous: false });
+
+  const fetchReviews = async () => {
+    try {
+      const q = query(
+        collection(db, 'companyReviews'),
+        where('employerId', '==', employerId),
+        orderBy('createdAt', 'desc'),
+      );
+      const snap = await getDocs(q);
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as any);
+      setReviews(list);
+      setReviewCount(list.length);
+      if (list.length > 0) {
+        const avg = list.reduce((sum: number, r: any) => sum + r.rating, 0) / list.length;
+        setAvgRating(avg);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSubmitReview = async () => {
+    const user = auth.currentUser;
+    if (!user) {
+      alert('Please sign in to leave a review.');
+      return;
+    }
+    try {
+      await addDoc(collection(db, 'companyReviews'), {
+        employerId,
+        reviewerId: user.uid,
+        reviewerName: reviewForm.isAnonymous ? 'Anonymous' : user.displayName || 'User',
+        rating: reviewForm.rating,
+        title: reviewForm.title,
+        pros: reviewForm.pros,
+        cons: reviewForm.cons,
+        isAnonymous: reviewForm.isAnonymous,
+        createdAt: serverTimestamp(),
+      });
+      setShowReviewForm(false);
+      setReviewForm({ rating: 5, title: '', pros: '', cons: '', isAnonymous: false });
+      fetchReviews();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to submit review.');
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -64,6 +119,7 @@ export default function CompanyPage() {
           );
           const jobsSnap = await getDocs(jobsQuery);
           setJobs(jobsSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as JobItem));
+          fetchReviews();
         }
       } catch (err) {
         console.error(err);
@@ -96,6 +152,22 @@ export default function CompanyPage() {
           <div className="flex items-center gap-2">
             <h1 className="text-3xl font-bold">{company.companyName}</h1>
             {company.isVerified && <VerifiedBadge size="md" />}
+            <button
+              onClick={() => {
+                const reason = prompt('Why are you reporting this company? (scam, fake, spam, inappropriate)')
+                if (reason) {
+                  fetch('/api/report-block', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'report', targetType: 'user', targetId: params.employerId, reason }),
+                  }).then(() => alert('Report submitted. Thank you for keeping Tinda safe.'))
+                }
+              }}
+              className="ml-auto text-textSecondary hover:text-red-500 transition-colors text-sm"
+              title="Report this company"
+            >
+              🚩 Report
+            </button>
           </div>
           <div className="flex flex-wrap gap-3 mt-2 text-sm text-textSecondary">
             {company.industry && <span>{company.industry}</span>}
