@@ -352,6 +352,30 @@ export default function DashboardPage() {
                   <p className="text-sm font-medium">Resume Builder</p>
                 </div>
               </Link>
+              <Link href="/candidate/mock-interview" className="group">
+                <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+                  <div className="text-2xl mb-1">🎤</div>
+                  <p className="text-sm font-medium">Mock Interview</p>
+                </div>
+              </Link>
+              <Link href="/candidate/salary-calculator" className="group">
+                <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+                  <div className="text-2xl mb-1">💰</div>
+                  <p className="text-sm font-medium">Salary Calc</p>
+                </div>
+              </Link>
+              <Link href="/candidate/referrals" className="group">
+                <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+                  <div className="text-2xl mb-1">🤝</div>
+                  <p className="text-sm font-medium">Referrals</p>
+                </div>
+              </Link>
+              <Link href="/offers" className="group">
+                <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+                  <div className="text-2xl mb-1">💼</div>
+                  <p className="text-sm font-medium">Offers</p>
+                </div>
+              </Link>
             </div>
 
             {/* Conversations */}
@@ -462,6 +486,40 @@ export default function DashboardPage() {
               <div className="text-4xl mb-3">🔍</div>
               <h2 className="text-xl font-semibold">Talent Discovery</h2>
               <p className="text-textSecondary text-sm mt-1">Swipe through AI-ranked candidates</p>
+            </div>
+          </Link>
+        </div>
+
+        {/* Quick Links */}
+        <div className="grid gap-4 grid-cols-3 lg:grid-cols-5">
+          <Link href="/employer/pipeline" className="group">
+            <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+              <div className="text-2xl mb-1">📋</div>
+              <p className="text-sm font-medium">Pipeline</p>
+            </div>
+          </Link>
+          <Link href="/employer/analytics" className="group">
+            <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+              <div className="text-2xl mb-1">📈</div>
+              <p className="text-sm font-medium">Analytics</p>
+            </div>
+          </Link>
+          <Link href="/interviews" className="group">
+            <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+              <div className="text-2xl mb-1">📅</div>
+              <p className="text-sm font-medium">Interviews</p>
+            </div>
+          </Link>
+          <Link href="/offers?role=employer" className="group">
+            <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+              <div className="text-2xl mb-1">💼</div>
+              <p className="text-sm font-medium">Offers</p>
+            </div>
+          </Link>
+          <Link href="/settings" className="group">
+            <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+              <div className="text-2xl mb-1">⚙️</div>
+              <p className="text-sm font-medium">Settings</p>
             </div>
           </Link>
         </div>

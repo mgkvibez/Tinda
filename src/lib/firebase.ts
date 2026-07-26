@@ -1083,3 +1083,165 @@ export async function saveResume(candidateId: string, data: Partial<Omit<ResumeR
     return { id: doc.id, ...doc.data() } as ResumeRecord
   }
 }
+
+// ─── Mock Interview Practice ──────────────────────────────
+
+export interface MockInterview {
+  id: string
+  candidateId: string
+  jobId: string | null
+  jobTitle: string | null
+  questions: { id: string; question: string; category: string; answer: string; aiFeedback: string | null; score: number | null }[]
+  overallScore: number | null
+  createdAt: string
+}
+
+export async function getMockInterviews(candidateId: string): Promise<MockInterview[]> {
+  const snap = await adminDb.collection('mockInterviews').where('candidateId', '==', candidateId).orderBy('createdAt', 'desc').get()
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })) as MockInterview[]
+}
+
+export async function saveMockInterview(candidateId: string, data: Omit<MockInterview, 'id' | 'candidateId' | 'createdAt'>): Promise<MockInterview> {
+  const now = new Date().toISOString()
+  const ref = adminDb.collection('mockInterviews').doc()
+  await ref.set({ ...data, candidateId, createdAt: now })
+  return { id: ref.id, candidateId, createdAt: now, ...data }
+}
+
+// ─── Company Reviews ───────────────────────────────────────
+
+export interface CompanyReview {
+  id: string
+  employerId: string
+  reviewerId: string
+  reviewerName: string
+  rating: number
+  title: string
+  pros: string
+  cons: string
+  isAnonymous: boolean
+  createdAt: string
+}
+
+export async function getCompanyReviews(employerId: string): Promise<{ reviews: CompanyReview[]; avgRating: number; total: number }> {
+  const snap = await adminDb.collection('companyReviews').where('employerId', '==', employerId).orderBy('createdAt', 'desc').get()
+  const reviews = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as CompanyReview[]
+  const avgRating = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0
+  return { reviews, avgRating, total: reviews.length }
+}
+
+export async function createCompanyReview(data: Omit<CompanyReview, 'id' | 'createdAt'>): Promise<CompanyReview> {
+  const now = new Date().toISOString()
+  const ref = adminDb.collection('companyReviews').doc()
+  await ref.set({ ...data, createdAt: now })
+  return { id: ref.id, createdAt: now, ...data }
+}
+
+// ─── Offers ────────────────────────────────────────────────
+
+export interface Offer {
+  id: string
+  matchId: string
+  candidateId: string
+  employerId: string
+  jobId: string
+  jobTitle: string
+  companyName: string
+  salary: number
+  salaryCurrency: string
+  startDate: string
+  benefits: string[]
+  terms: string
+  status: 'pending' | 'accepted' | 'declined' | 'withdrawn'
+  createdAt: string
+  respondedAt: string | null
+}
+
+export async function getOffers(userId: string, role: 'candidate' | 'employer'): Promise<Offer[]> {
+  const field = role === 'candidate' ? 'candidateId' : 'employerId'
+  const snap = await adminDb.collection('offers').where(field, '==', userId).orderBy('createdAt', 'desc').get()
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Offer[]
+}
+
+export async function createOffer(data: Omit<Offer, 'id' | 'createdAt' | 'status' | 'respondedAt'>): Promise<Offer> {
+  const now = new Date().toISOString()
+  const ref = adminDb.collection('offers').doc()
+  await ref.set({ ...data, status: 'pending', createdAt: now, respondedAt: null })
+  return { id: ref.id, status: 'pending', createdAt: now, respondedAt: null, ...data }
+}
+
+export async function updateOfferStatus(offerId: string, status: Offer['status'], userId: string): Promise<Offer | null> {
+  const ref = adminDb.collection('offers').doc(offerId)
+  const doc = await ref.get()
+  if (!doc.exists) return null
+  const data = doc.data() as Offer
+  // Only the right party can change status
+  if (status === 'accepted' || status === 'declined') {
+    if (data.candidateId !== userId) return null
+  }
+  if (status === 'withdrawn') {
+    if (data.employerId !== userId) return null
+  }
+  await ref.set({ status, respondedAt: new Date().toISOString() }, { merge: true })
+  const updated = await ref.get()
+  return { id: updated.id, ...updated.data() } as Offer
+}
+
+// ─── Candidate Notes (employer private notes) ──────────────
+
+export interface CandidateNote {
+  id: string
+  employerId: string
+  candidateId: string
+  matchId: string | null
+  note: string
+  color: string
+  createdAt: string
+}
+
+export async function getCandidateNotes(employerId: string, candidateId: string): Promise<CandidateNote[]> {
+  const snap = await adminDb.collection('candidateNotes').where('employerId', '==', employerId).where('candidateId', '==', candidateId).orderBy('createdAt', 'desc').get()
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })) as CandidateNote[]
+}
+
+export async function createCandidateNote(data: Omit<CandidateNote, 'id' | 'createdAt'>): Promise<CandidateNote> {
+  const now = new Date().toISOString()
+  const ref = adminDb.collection('candidateNotes').doc()
+  await ref.set({ ...data, createdAt: now })
+  return { id: ref.id, createdAt: now, ...data }
+}
+
+export async function deleteCandidateNote(noteId: string, employerId: string): Promise<void> {
+  const ref = adminDb.collection('candidateNotes').doc(noteId)
+  const doc = await ref.get()
+  if (doc.exists && (doc.data() as CandidateNote).employerId === employerId) {
+    await ref.delete()
+  }
+}
+
+// ─── Referrals ─────────────────────────────────────────────
+
+export interface Referral {
+  id: string
+  referrerId: string
+  referrerName: string
+  jobId: string
+  jobTitle: string
+  referredEmail: string
+  referredName: string
+  status: 'pending' | 'signed_up' | 'hired'
+  reward: string
+  createdAt: string
+}
+
+export async function getReferrals(referrerId: string): Promise<Referral[]> {
+  const snap = await adminDb.collection('referrals').where('referrerId', '==', referrerId).orderBy('createdAt', 'desc').get()
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Referral[]
+}
+
+export async function createReferral(data: Omit<Referral, 'id' | 'createdAt' | 'status'>): Promise<Referral> {
+  const now = new Date().toISOString()
+  const ref = adminDb.collection('referrals').doc()
+  await ref.set({ ...data, status: 'pending', createdAt: now })
+  return { id: ref.id, status: 'pending', createdAt: now, ...data }
+}
