@@ -5,7 +5,12 @@ import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { db } from "@/lib/firebase/client";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { auth } from "@/lib/firebase/client";
+import { getIdToken } from "firebase/auth";
 import { VerifiedBadge } from "@/components/verified-badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import Link from "next/link";
 
 type CompanyData = {
@@ -207,6 +212,64 @@ export default function CompanyPage() {
           </div>
         </div>
       )}
+
+      {/* Company Reviews */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Reviews ({reviewCount})</h2>
+          {avgRating > 0 && (
+            <div className="flex items-center gap-1">
+              <span className="text-2xl">{"★".repeat(Math.round(avgRating))}</span>
+              <span className="text-sm text-textSecondary">{avgRating.toFixed(1)}</span>
+            </div>
+          )}
+        </div>
+
+        <Button variant="outline" size="sm" onClick={() => setShowReviewForm(!showReviewForm)}>
+          {showReviewForm ? "Cancel" : "+ Write a Review"}
+        </Button>
+
+        {showReviewForm && (
+          <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+            <div>
+              <Label>Rating</Label>
+              <div className="flex gap-1 mt-1">
+                {[1,2,3,4,5].map((n) => (
+                  <button key={n} onClick={() => setReviewForm({ ...reviewForm, rating: n })} className="text-2xl">
+                    {n <= reviewForm.rating ? "★" : "☆"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div><Label>Title</Label><Input value={reviewForm.title} onChange={(e) => setReviewForm({ ...reviewForm, title: e.target.value })} placeholder="Great place to work!" className="mt-1" /></div>
+            <div><Label>Pros</Label><textarea value={reviewForm.pros} onChange={(e) => setReviewForm({ ...reviewForm, pros: e.target.value })} placeholder="What did you enjoy?" className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm min-h-[60px] resize-y" /></div>
+            <div><Label>Cons</Label><textarea value={reviewForm.cons} onChange={(e) => setReviewForm({ ...reviewForm, cons: e.target.value })} placeholder="What could be better?" className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm min-h-[60px] resize-y" /></div>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={reviewForm.isAnonymous} onChange={(e) => setReviewForm({ ...reviewForm, isAnonymous: e.target.checked })} /> Post anonymously</label>
+            <Button onClick={handleSubmitReview} className="w-full" disabled={!reviewForm.title.trim() || !reviewForm.pros.trim() || !reviewForm.cons.trim()}>Submit Review</Button>
+          </div>
+        )}
+
+        {reviews.map((review) => (
+          <div key={review.id} className="rounded-2xl border border-border bg-card p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <p className="font-medium text-sm">{review.reviewerName}</p>
+                <span className="text-sm text-orange-400">{"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}</span>
+              </div>
+              <span className="text-xs text-textSecondary">{new Date(review.createdAt).toLocaleDateString()}</span>
+            </div>
+            <p className="font-medium text-sm mb-1">{review.title}</p>
+            <div className="text-xs space-y-1">
+              <p className="text-green-500">+ {review.pros}</p>
+              <p className="text-red-400">- {review.cons}</p>
+            </div>
+          </div>
+        ))}
+
+        {reviews.length === 0 && !showReviewForm && (
+          <p className="text-textSecondary text-sm text-center py-4">No reviews yet. Be the first to review!</p>
+        )}
+      </div>
 
       <div className="text-center">
         <Link href="/dashboard" className="text-sm text-textSecondary hover:underline">

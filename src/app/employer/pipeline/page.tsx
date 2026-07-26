@@ -31,6 +31,9 @@ export default function PipelinePage() {
   const [pipeline, setPipeline] = useState<PipelineItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [notesForCandidate, setNotesForCandidate] = useState<string | null>(null);
+  const [candidateNotes, setCandidateNotes] = useState<any[]>([]);
+  const [newNote, setNewNote] = useState("");
 
   useEffect(() => {
     fetchPipeline();
@@ -72,6 +75,45 @@ export default function PipelinePage() {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const fetchNotes = async (candidateId: string) => {
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+      const token = await getIdToken(user);
+      const res = await fetch(`/api/candidate-notes?candidateId=${candidateId}`, { headers: { Cookie: `__session=${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setCandidateNotes(data.notes || []);
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleAddNote = async (candidateId: string) => {
+    if (!newNote.trim()) return;
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+      const token = await getIdToken(user);
+      await fetch("/api/candidate-notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Cookie: `__session=${token}` },
+        body: JSON.stringify({ candidateId, note: newNote, color: "yellow" }),
+      });
+      setNewNote("");
+      fetchNotes(candidateId);
+    } catch (err) { console.error(err); }
+  };
+
+  const handleDeleteNote = async (noteId: string, candidateId: string) => {
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+      const token = await getIdToken(user);
+      await fetch(`/api/candidate-notes?id=${noteId}`, { method: "DELETE", headers: { Cookie: `__session=${token}` } });
+      fetchNotes(candidateId);
+    } catch (err) { console.error(err); }
   };
 
   const handleDrop = (stage: string) => {
@@ -148,9 +190,44 @@ export default function PipelinePage() {
                           </span>
                         ))}
                       </div>
-                      <Link href={`/chat/${item.id}`} className="text-xs text-primary hover:underline">
-                        View →
-                      </Link>
+                      <div className="flex items-center justify-between">
+                        <Link href={`/chat/${item.id}`} className="text-xs text-primary hover:underline">
+                          View →
+                        </Link>
+                        <button
+                          onClick={() => {
+                            if (notesForCandidate === item.candidateId) {
+                              setNotesForCandidate(null);
+                            } else {
+                              setNotesForCandidate(item.candidateId);
+                              fetchNotes(item.candidateId);
+                            }
+                          }}
+                          className="text-xs text-textSecondary hover:text-primary"
+                        >
+                          📝 Notes
+                        </button>
+                      </div>
+                      {notesForCandidate === item.candidateId && (
+                        <div className="mt-2 rounded-lg bg-muted p-2 space-y-1.5">
+                          {candidateNotes.map((n) => (
+                            <div key={n.id} className="flex items-start gap-1 text-xs">
+                              <span className="flex-1">{n.note}</span>
+                              <button onClick={() => handleDeleteNote(n.id, item.candidateId)} className="text-textSecondary hover:text-destructive">✕</button>
+                            </div>
+                          ))}
+                          <div className="flex gap-1">
+                            <input
+                              value={newNote}
+                              onChange={(e) => setNewNote(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddNote(item.candidateId); } }}
+                              placeholder="Add a note..."
+                              className="flex-1 rounded border border-border bg-background px-2 py-1 text-xs"
+                            />
+                            <button onClick={() => handleAddNote(item.candidateId)} className="text-xs text-primary">Add</button>
+                          </div>
+                        </div>
+                      )}
                     </motion.div>
                   ))}
                   {items.length === 0 && (
