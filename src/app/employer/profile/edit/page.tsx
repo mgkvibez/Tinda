@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import { ProfileCompletionMeter } from "@/components/profile-completion-meter";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { calculateEmployerCompletion } from "@/lib/profile-completion";
+import type { EmployerProfile } from "@/lib/firebase";
 import { auth, db } from "@/lib/firebase/client";
 import { getIdToken } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs } from "firebase/firestore";
@@ -179,7 +180,7 @@ export default function EmployerProfileEdit() {
 
   if (loading) return <p className="text-center py-8 text-textSecondary">Loading...</p>;
 
-  const completion = calculateEmployerCompletion({ ...profileData, cultureVideoUrl } || null);
+  const completion = calculateEmployerCompletion({ ...profileData, cultureVideoUrl } as EmployerProfile);
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">

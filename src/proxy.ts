@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 /**
- * Lightweight middleware — runs on the Edge runtime.
+ * Proxy middleware (Next.js 16 naming) — runs on the Edge runtime.
  * Only checks for the presence of a __session cookie.
  * Full Firebase ID token verification happens in API route handlers
  * (which run in the Node.js runtime) via the auth() function.
@@ -11,6 +11,7 @@ export async function proxy(request: NextRequest) {
   const sessionCookie = request.cookies.get('__session')?.value
 
   const isAuthPage = request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup'
+
   const isProtected = request.nextUrl.pathname.startsWith('/dashboard') ||
     request.nextUrl.pathname.startsWith('/candidate') ||
     request.nextUrl.pathname.startsWith('/employer') ||
@@ -19,7 +20,8 @@ export async function proxy(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/settings') ||
     request.nextUrl.pathname.startsWith('/interviews') ||
     request.nextUrl.pathname.startsWith('/assessment') ||
-    request.nextUrl.pathname.startsWith('/offers')
+    request.nextUrl.pathname.startsWith('/offers') ||
+    request.nextUrl.pathname.startsWith('/admin')
 
   // Public routes — company pages and manifest
   const isPublic = request.nextUrl.pathname.startsWith('/company') ||
@@ -53,25 +55,9 @@ export const config = {
     '/interviews/:path*',
     '/assessment/:path*',
     '/offers/:path*',
-    '/candidate/career-coach/:path*',
-    '/candidate/red-flags/:path*',
-    '/candidate/skills-gap/:path*',
-    '/candidate/negotiation/:path*',
-    '/candidate/career-path/:path*',
-    '/candidate/resume-tailor/:path*',
-    '/candidate/peer-benchmark/:path*',
-    '/candidate/flashcards/:path*',
+    '/admin/:path*',
     '/company/:path*',
     '/login',
     '/signup',
   ],
-}
-
-// Security route protection
-const isSecurityProtected = request.nextUrl.pathname.startsWith('/settings/security') ||
-    request.nextUrl.pathname.startsWith('/admin')
-
-if (!sessionCookie && isSecurityProtected) {
-    const loginUrl = new URL('/login', request.url)
-    return NextResponse.redirect(loginUrl)
 }

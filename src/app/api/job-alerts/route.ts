@@ -35,6 +35,8 @@ export async function POST(request: Request) {
     const alert = await createJobAlert({
       candidateId: session.user.id,
       ...data,
+      location: data.location ?? null,
+      salaryMin: data.salaryMin ?? null,
     })
 
     return NextResponse.json({ alert })
