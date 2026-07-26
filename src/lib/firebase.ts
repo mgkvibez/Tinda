@@ -20,6 +20,19 @@ export interface UserRecord {
   lastSwipeDate?: string | null
   totalSwipes?: number
   totalMatches?: number
+  // Security fields
+  verificationLevel?: number
+  emailVerified?: boolean
+  phoneVerified?: boolean
+  identityVerified?: boolean
+  phone?: string | null
+  twoFactorEnabled?: boolean
+  role?: string | null
+  createdAt?: string
+  flagged?: boolean
+  flagReason?: string | null
+  flaggedAt?: string | null
+  banned?: boolean
 }
 
 export interface JobRecord {
@@ -79,6 +92,8 @@ export interface MessageRecord {
   senderId: string
   text: string
   read: boolean
+  flagged?: boolean
+  warnings?: Array<{ type: string; message: string; severity: string }>
 }
 
 export interface CandidateProfile {

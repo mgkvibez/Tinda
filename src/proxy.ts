@@ -66,3 +66,12 @@ export const config = {
     '/signup',
   ],
 }
+
+// Security route protection
+const isSecurityProtected = request.nextUrl.pathname.startsWith('/settings/security') ||
+    request.nextUrl.pathname.startsWith('/admin')
+
+if (!sessionCookie && isSecurityProtected) {
+    const loginUrl = new URL('/login', request.url)
+    return NextResponse.redirect(loginUrl)
+}
