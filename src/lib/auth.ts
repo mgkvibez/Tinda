@@ -1,5 +1,6 @@
 import 'server-only'
 import { adminAuth } from './firebase/admin'
+import { adminDb } from './firebase/admin'
 import { getUserById, UserType } from './firebase'
 
 export interface AuthSession {
@@ -7,7 +8,12 @@ export interface AuthSession {
     id: string
     email: string
     name: string
+    fullName: string
     userType: UserType
+    role: string
+    sessionId?: string
+    isFrozen: boolean
+    frozenReason?: string | null
   }
 }
 
@@ -23,13 +29,10 @@ export async function auth(requestOrCookies?: Request | { cookies: { get: (name:
     let token: string | undefined
 
     if (!requestOrCookies) {
-      // No request passed — can't authenticate
       return null
     }
 
-    // Check if it's a Request object (has headers)
     if (requestOrCookies instanceof Request) {
-      // Try cookie first
       const cookieHeader = requestOrCookies.headers.get('cookie') || ''
       const cookies = Object.fromEntries(
         cookieHeader.split('; ').map((c) => {
@@ -39,7 +42,6 @@ export async function auth(requestOrCookies?: Request | { cookies: { get: (name:
       )
       token = cookies['__session']
 
-      // Fall back to Authorization header
       if (!token) {
         const authHeader = requestOrCookies.headers.get('authorization')
         if (authHeader?.startsWith('Bearer ')) {
@@ -47,7 +49,6 @@ export async function auth(requestOrCookies?: Request | { cookies: { get: (name:
         }
       }
     } else if (requestOrCookies.cookies?.get) {
-      // Middleware-style object with cookies.get()
       token = requestOrCookies.cookies.get('__session')?.value
     }
 
@@ -57,12 +58,35 @@ export async function auth(requestOrCookies?: Request | { cookies: { get: (name:
     const userRecord = await getUserById(decoded.uid)
     if (!userRecord) return null
 
+    // Check if account is frozen
+    if (userRecord.banned) {
+      return null
+    }
+
+    // Check for freeze status from Firestore
+    let isFrozen = false
+    let frozenReason: string | null = null
+    try {
+      const userDoc = await adminDb.collection('users').doc(userRecord.id).get()
+      if (userDoc.exists) {
+        const userData = userDoc.data()!
+        isFrozen = userData.isFrozen || false
+        frozenReason = userData.frozenReason || null
+      }
+    } catch {
+      // If we can't check, don't block
+    }
+
     return {
       user: {
         id: userRecord.id,
         email: userRecord.email,
         name: userRecord.name,
+        fullName: userRecord.name,
         userType: userRecord.userType,
+        role: userRecord.role || 'user',
+        isFrozen,
+        frozenReason,
       },
     }
   } catch {
@@ -70,7 +94,6 @@ export async function auth(requestOrCookies?: Request | { cookies: { get: (name:
   }
 }
 
-// Keep for backward compatibility with any code that uses getAuthenticatedUser
 export async function getAuthenticatedUser(req?: Request) {
   const session = await auth(req)
   return session?.user ?? null

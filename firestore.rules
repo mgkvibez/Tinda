@@ -210,4 +210,34 @@ service cloud.firestore {
       allow create: if request.auth != null;
     }
   }
+
+    // Disputes — user can read own, admin can read all
+    match /disputes/{disputeId} {
+      allow read: if request.auth != null && (resource.data.raisedBy == request.auth.uid || request.auth.token.role == 'admin');
+      allow create: if request.auth != null && request.resource.data.raisedBy == request.auth.uid;
+      allow update: if request.auth != null && request.auth.token.role == 'admin';
+    }
+
+    // Sessions — user can read/modify own sessions only
+    match /sessions/{sessionId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // Security audit log — user can read own, admin can read all, system can write
+    match /security_audit_log/{logId} {
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || request.auth.token.role == 'admin');
+      allow create: if request.auth != null;
+    }
+
+    // Offer protection — both parties can read, employer can create
+    match /offer_protection/{protectionId} {
+      allow read: if request.auth != null && (resource.data.candidateId == request.auth.uid || resource.data.employerId == request.auth.uid);
+      allow create: if request.auth != null && request.resource.data.employerId == request.auth.uid;
+      allow update: if request.auth != null && (resource.data.candidateId == request.auth.uid || resource.data.employerId == request.auth.uid);
+    }
+  }
 }
+
