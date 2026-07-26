@@ -7,7 +7,7 @@ import type { NextRequest } from 'next/server'
  * Full Firebase ID token verification happens in API route handlers
  * (which run in the Node.js runtime) via the auth() function.
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const sessionCookie = request.cookies.get('__session')?.value
 
   const isAuthPage = request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/signup'
