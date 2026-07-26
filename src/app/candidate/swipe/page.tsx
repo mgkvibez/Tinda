@@ -38,6 +38,36 @@ export default function CandidateSwipePage() {
   const [generatingCover, setGeneratingCover] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [hasAssessment, setHasAssessment] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reporting, setReporting] = useState(false);
+
+  const handleReport = async () => {
+    if (!cards[current] || !reportReason) return;
+    setReporting(true);
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+      const token = await getIdToken(user);
+      await fetch('/api/report-block', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          action: 'report',
+          targetType: 'job',
+          targetId: cards[current].jobId,
+          reason: reportReason,
+        }),
+      });
+      setShowReportModal(false);
+      setReportReason('');
+      handleSwipe(false); // auto-pass after reporting
+    } catch {
+      // ignore
+    } finally {
+      setReporting(false);
+    }
+  };;
 
   useEffect(() => {
     fetchJobs();
@@ -253,6 +283,9 @@ export default function CandidateSwipePage() {
                     <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" />
                   </svg>
                 </button>
+                <button onClick={() => setShowReportModal(true)} className="rounded-full p-2 hover:bg-red-50 hover:text-red-600 transition-colors" title="Report this job">
+                  <span className="text-lg">🚩</span>
+                </button>
                 <ShareButtons jobTitle={card.title} companyName={card.companyName || ""} jobId={card.jobId} />
               </div>
             </div>
@@ -335,6 +368,35 @@ export default function CandidateSwipePage() {
           </div>
         </motion.div>
       </AnimatePresence>
+      {/* Report Modal */}
+      {showReportModal && cards[current] && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-card rounded-2xl p-6 max-w-sm w-full space-y-4">
+            <h3 className="text-lg font-bold">Report this job</h3>
+            <p className="text-sm text-textSecondary">Help keep Tinda safe. Why are you reporting this job?</p>
+            <select
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
+            >
+              <option value="">Select a reason...</option>
+              <option value="scam">Scam or fraud</option>
+              <option value="misleading_job">Misleading or fake posting</option>
+              <option value="spam">Spam</option>
+              <option value="inappropriate">Inappropriate content</option>
+              <option value="other">Other</option>
+            </select>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => { setShowReportModal(false); setReportReason(''); }}>
+                Cancel
+              </Button>
+              <Button variant="destructive" className="flex-1" onClick={handleReport} disabled={!reportReason || reporting}>
+                {reporting ? 'Reporting...' : 'Report'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
