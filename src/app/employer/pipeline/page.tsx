@@ -194,19 +194,39 @@ export default function PipelinePage() {
                         <Link href={`/chat/${item.id}`} className="text-xs text-primary hover:underline">
                           View →
                         </Link>
-                        <button
-                          onClick={() => {
-                            if (notesForCandidate === item.candidateId) {
-                              setNotesForCandidate(null);
-                            } else {
-                              setNotesForCandidate(item.candidateId);
-                              fetchNotes(item.candidateId);
-                            }
-                          }}
-                          className="text-xs text-textSecondary hover:text-primary"
-                        >
-                          📝 Notes
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              if (notesForCandidate === item.candidateId) {
+                                setNotesForCandidate(null);
+                              } else {
+                                setNotesForCandidate(item.candidateId);
+                                fetchNotes(item.candidateId);
+                              }
+                            }}
+                            className="text-xs text-textSecondary hover:text-primary"
+                          >
+                            📝 Notes
+                          </button>
+                          <button
+                            onClick={() => {
+                              const reason = prompt('Why are you reporting this candidate? (scam, spam, inappropriate, other)');
+                              if (reason && auth.currentUser) {
+                                getIdToken(auth.currentUser).then((token) => {
+                                  fetch('/api/report-block', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                    body: JSON.stringify({ action: 'report', targetType: 'user', targetId: item.candidateId, reason }),
+                                  }).then(() => alert('Report submitted.'));
+                                });
+                              }
+                            }}
+                            className="text-xs text-textSecondary hover:text-red-500"
+                            title="Report candidate"
+                          >
+                            🚩
+                          </button>
+                        </div>
                       </div>
                       {notesForCandidate === item.candidateId && (
                         <div className="mt-2 rounded-lg bg-muted p-2 space-y-1.5">
