@@ -34,7 +34,7 @@ export async function PUT(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  const session = await auth();
+  const session = await auth(request);
   const user = (session as any)?.user;
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
@@ -85,7 +85,7 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  const session = await auth();
+  const session = await auth(request);
   const user = (session as any)?.user;
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
