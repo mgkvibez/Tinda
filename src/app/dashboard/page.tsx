@@ -424,6 +424,12 @@ export default function DashboardPage() {
                   <p className="text-sm font-medium">Interview Flashcards</p>
                 </div>
               </Link>
+              <Link href="/settings/security" className="group">
+                <div className="rounded-2xl border border-border p-4 bg-card hover:border-primary transition-colors h-full text-center">
+                  <div className="text-2xl mb-1">🔒</div>
+                  <p className="text-sm font-medium">Security</p>
+                </div>
+              </Link>
             </div>
 
             {/* Conversations */}

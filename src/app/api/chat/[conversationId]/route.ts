@@ -6,6 +6,7 @@ import {
   markMessagesRead,
   getConversation,
 } from '@/lib/firebase'
+import { scanMessage } from '@/lib/safe-chat'
 
 export async function GET(
   request: Request,
@@ -62,11 +63,17 @@ export async function POST(
       return NextResponse.json({ message: 'Message text required' }, { status: 400 })
     }
 
+    // Scan message for scam/off-platform indicators
+    const scanResult = scanMessage(text.trim())
+
+    // If dangerous content detected, flag but don't block (let user decide)
     const message = await saveMessage({
       conversationId,
       senderId: userId,
       text: text.trim(),
       read: false,
+      flagged: scanResult.hasDanger || scanResult.shouldBlock,
+      warnings: scanResult.warnings,
     })
 
     // Create a notification for the other participant
@@ -83,7 +90,10 @@ export async function POST(
       data: { conversationId },
     })
 
-    return NextResponse.json({ message })
+    return NextResponse.json({
+      message,
+      safetyWarnings: scanResult.warnings,
+    })
   } catch (error) {
     console.error('Send message error:', error)
     return NextResponse.json({ message: 'Failed to send message' }, { status: 500 })
