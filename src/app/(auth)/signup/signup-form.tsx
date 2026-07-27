@@ -31,12 +31,38 @@ const signupSchema = z.object({
 
 type SignupFormInputs = z.infer<typeof signupSchema>;
 
+function getFirebaseErrorMessage(error: any): string {
+  const code = error?.code || ""
+  switch (code) {
+    case "auth/email-already-in-use":
+      return "An account with this email already exists. Try logging in instead."
+    case "auth/invalid-email":
+      return "Invalid email address."
+    case "auth/weak-password":
+      return "Password is too weak. Use at least 8 characters."
+    case "auth/popup-closed-by-user":
+      return "Sign-in popup was closed before completing."
+    case "auth/popup-blocked":
+      return "Popup was blocked by your browser. Allow popups and try again."
+    case "auth/unauthorized-domain":
+      return "This domain is not authorized for Google sign-in. Add it in Firebase Console > Authentication > Settings > Authorized domains."
+    case "auth/operation-not-allowed":
+      return "This sign-in method is not enabled. Enable it in Firebase Console > Authentication > Sign-in method."
+    case "auth/api-key-not-valid":
+      return "Firebase API key is invalid. Check your NEXT_PUBLIC_FIREBASE_API_KEY env var."
+    case "auth/network-request-failed":
+      return "Network error. Check your internet connection."
+    default:
+      return error?.message || "Sign-up failed. Please try again."
+  }
+}
+
 function SignupFormInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  // Read ?type=employer from the URL to pre-select employer
   const defaultUserType = searchParams.get("type") === "employer" ? "Employer" : "Candidate";
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const {
     register,
@@ -55,13 +81,12 @@ function SignupFormInner() {
   const selectedUserType = watch("userType");
 
   const onSubmit = async (data: SignupFormInputs) => {
+    setErrorMessage("");
     setIsLoading(true);
     try {
-      // 1. Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
       const user = userCredential.user;
 
-      // 2. Create user profile in Firestore
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         name: data.name,
@@ -72,7 +97,6 @@ function SignupFormInner() {
         updatedAt: serverTimestamp(),
       });
 
-      // 3. Create role-specific profile
       if (data.userType === "Candidate") {
         await setDoc(doc(db, "candidateProfiles", user.uid), {
           userId: user.uid,
@@ -117,35 +141,30 @@ function SignupFormInner() {
         });
       }
 
-      // 4. Send email verification
       await sendEmailVerification(user);
 
-      // 5. Set session cookie before navigating (avoid login redirect race)
       const token = await user.getIdToken();
-      document.cookie = `__session=${token}; path=/; Secure; SameSite=Strict; max-age=3600`;
+      const isHttps = typeof window !== "undefined" && window.location.protocol === "https:"
+      const secureFlag = isHttps ? "Secure; " : ""
+      document.cookie = `__session=${token}; path=/; ${secureFlag}SameSite=Strict; max-age=3600`;
 
-      // 6. Redirect to dashboard
       router.push("/dashboard");
     } catch (error) {
       console.error("Signup error:", error);
-      const message = error instanceof Error ? error.message : "An unexpected error occurred.";
-      if (message.includes("email-already-in-use")) {
-        alert("An account with this email already exists. Try logging in instead.");
-      } else {
-        alert("Signup failed. " + message);
-      }
+      setErrorMessage(getFirebaseErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
+    setErrorMessage("");
+    setIsLoading(true);
     try {
-      setIsLoading(true);
       await signInWithGoogle();
     } catch (error) {
       console.error("Google sign-in error:", error);
-      alert("Failed to sign in with Google.");
+      setErrorMessage(getFirebaseErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -162,6 +181,12 @@ function SignupFormInner() {
         <h3 className="text-3xl font-bold text-foreground mb-2">Join Tinda</h3>
         <p className="text-textSecondary">Create your account to get started.</p>
       </div>
+
+      {errorMessage && (
+        <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+          {errorMessage}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
@@ -189,11 +214,11 @@ function SignupFormInner() {
           <RadioGroup value={selectedUserType} onValueChange={(value) => setValue("userType", value as "Candidate" | "Employer")}>
             <div className="flex items-center space-x-2 mb-2">
               <RadioGroupItem value="Candidate" id="candidate" />
-              <Label htmlFor="candidate" className="cursor-pointer">I'm a Candidate</Label>
+              <Label htmlFor="candidate" className="cursor-pointer">I&apos;m a Candidate</Label>
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="Employer" id="employer" />
-              <Label htmlFor="employer" className="cursor-pointer">I'm an Employer</Label>
+              <Label htmlFor="employer" className="cursor-pointer">I&apos;m an Employer</Label>
             </div>
           </RadioGroup>
           {errors.userType && <p className="text-destructive text-sm mt-1">{errors.userType.message}</p>}

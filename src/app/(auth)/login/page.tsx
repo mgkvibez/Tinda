@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
@@ -21,10 +21,46 @@ const loginSchema = z.object({
 
 type LoginFormInputs = z.infer<typeof loginSchema>;
 
+function getFirebaseErrorMessage(error: any): string {
+  const code = error?.code || ""
+  switch (code) {
+    case "auth/invalid-email":
+      return "Invalid email address."
+    case "auth/user-disabled":
+      return "This account has been disabled."
+    case "auth/user-not-found":
+      return "No account found with this email."
+    case "auth/wrong-password":
+    case "auth/invalid-credential":
+      return "Wrong email or password."
+    case "auth/too-many-requests":
+      return "Too many failed attempts. Try again later."
+    case "auth/popup-closed-by-user":
+      return "Sign-in popup was closed before completing."
+    case "auth/cancelled-popup-request":
+      return "Sign-in was cancelled."
+    case "auth/popup-blocked":
+      return "Popup was blocked by your browser. Allow popups and try again."
+    case "auth/unauthorized-domain":
+      return "This domain is not authorized for Google sign-in. Add it in Firebase Console > Authentication > Settings > Authorized domains."
+    case "auth/operation-not-allowed":
+      return "This sign-in method is not enabled. Enable it in Firebase Console > Authentication > Sign-in method."
+    case "auth/configuration-not-found":
+      return "Google sign-in is not configured. Enable it in Firebase Console."
+    case "auth/api-key-not-valid":
+      return "Firebase API key is invalid. Check your NEXT_PUBLIC_FIREBASE_API_KEY env var."
+    case "auth/network-request-failed":
+      return "Network error. Check your internet connection."
+    default:
+      return error?.message || "Sign-in failed. Please try again."
+  }
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const { signInWithGoogle } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const {
     register,
     handleSubmit,
@@ -34,31 +70,30 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: LoginFormInputs) => {
+    setErrorMessage("");
     setIsLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
-      // Set the __session cookie immediately before navigating,
-      // to avoid a race condition where middleware redirects to /login
-      // because the cookie hasn't been set yet by onAuthStateChanged.
       const token = await userCredential.user.getIdToken();
-      document.cookie = `__session=${token}; path=/; Secure; SameSite=Strict; max-age=3600`;
+      const isHttps = typeof window !== "undefined" && window.location.protocol === "https:"
+      document.cookie = `__session=${token}; path=/; ${isHttps ? "Secure; " : ""}SameSite=Strict; max-age=3600`;
       router.push("/dashboard");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Invalid credentials";
-      console.error("Login error:", message);
-      alert("Login failed. Please check your email and password.");
+      console.error("Login error:", error);
+      setErrorMessage(getFirebaseErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
+    setErrorMessage("");
     setIsLoading(true);
     try {
       await signInWithGoogle();
     } catch (error) {
       console.error("Google sign-in error:", error);
-      alert("Failed to sign in with Google.");
+      setErrorMessage(getFirebaseErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -75,6 +110,12 @@ export default function LoginPage() {
         <h3 className="text-3xl font-bold text-foreground mb-2">Welcome Back!</h3>
         <p className="text-textSecondary">Sign in to your Tinda account.</p>
       </div>
+
+      {errorMessage && (
+        <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+          {errorMessage}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
@@ -143,11 +184,11 @@ export default function LoginPage() {
             fill="#4285F4"
           />
           <path
-            d="M6.00033 14.8901C5.70033 14.0901 5.53133 13.1901 5.53133 11.2901 5.53133 10.3901 5.70033 9.5901L2.22133 6.6201C1.10033 8.8401 0.5 10.4901 0.5 12.2401C0.5 13.9901 1.10033 15.6401 2.22133 17.8601L6.00033 14.8901Z"
+            d="M6.00033 14.8901C5.70033 14.0901 5.53133 13.1901 5.53133 11.2901 5.53133 10.3901 5.70033 9.5901L2.22133 6.6201C1.10033 8.8401 0.5 10.4901 0.5 12.2401 0.5 13.9901 1.10033 15.6401 2.22133 17.8601L6.00033 14.8901Z"
             fill="#FBBC05"
           />
           <path
-            d="M12.25 23.7499C15.253 23.7499 17.801 22.7499 19.66 21.1099L16.322 17.9199C15.442 18.5099 14.093 18.9999 12.25 18.9999C9.221 18.9999 6.95033 17.0099 6.00033 14.8999L2.22133 17.8699C4.02133 21.3499 7.729 23.7499 12.25 23.7499Z"
+            d="M12.25 23.7499C15.253 23.7499 17.801 22.7499 19.66 21.1099L16.322 17.9199C15.442 18.5099 14.093 18.9999 12.25 18.9999 9.221 18.9999 6.95033 17.0099 6.00033 14.8999L2.22133 17.8699C4.02133 21.3499 7.729 23.7499 12.25 23.7499Z"
             fill="#34A853"
           />
         </svg>

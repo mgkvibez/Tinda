@@ -29,34 +29,35 @@ const AuthContext = createContext<AuthContextType>({
   signInWithGoogle: async () => {},
 })
 
+function setSessionCookie(token: string) {
+  const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:'
+  const secureFlag = isHttps ? 'Secure; ' : ''
+  document.cookie = `__session=${token}; path=/; ${secureFlag}SameSite=Strict; max-age=3600`
+}
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
-    // Set persistence to local so the user stays logged in across sessions
     setPersistence(auth, browserLocalPersistence).catch(console.error)
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser)
 
       if (currentUser) {
-        // Sync ID token to a cookie so middleware/API routes can verify it
         const token = await currentUser.getIdToken()
-        document.cookie = `__session=${token}; path=/; Secure; SameSite=Strict; max-age=3600`
+        setSessionCookie(token)
 
-        // Set up token refresh — Firebase tokens expire in 1 hour
-        // Refresh the cookie 5 minutes before expiry
         const refreshTimer = setTimeout(async () => {
           if (auth.currentUser) {
             const freshToken = await auth.currentUser.getIdToken(true)
-            document.cookie = `__session=${freshToken}; path=/; Secure; SameSite=Strict; max-age=3600`
+            setSessionCookie(freshToken)
           }
-        }, 55 * 60 * 1000) // 55 minutes
+        }, 55 * 60 * 1000)
         return () => clearTimeout(refreshTimer)
       } else {
-        // Clear cookie on logout
         document.cookie = '__session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
       }
 
@@ -77,38 +78,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   const signInWithGoogle = async () => {
-    try {
-      const provider = new GoogleAuthProvider()
-      const result = await signInWithPopup(auth, provider)
-      const googleUser = result.user
+    const provider = new GoogleAuthProvider()
+    const result = await signInWithPopup(auth, provider)
+    const googleUser = result.user
 
-      // Set session cookie immediately before navigating
-      const token = await googleUser.getIdToken()
-      document.cookie = `__session=${token}; path=/; Secure; SameSite=Strict; max-age=3600`
+    const token = await googleUser.getIdToken()
+    setSessionCookie(token)
 
-      // Check if the user already has a Firestore doc
-      const userDocRef = doc(db, 'users', googleUser.uid)
-      const userDoc = await getDoc(userDocRef)
+    const userDocRef = doc(db, 'users', googleUser.uid)
+    const userDoc = await getDoc(userDocRef)
 
-      if (!userDoc.exists()) {
-        // Google sign-in — new user. Create a minimal doc.
-        // userType will be set during onboarding on the dashboard.
-        await setDoc(userDocRef, {
-          uid: googleUser.uid,
-          email: googleUser.email,
-          name: googleUser.displayName || 'New User',
-          userType: null, // will be set during onboarding
-          ownerId: googleUser.uid,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        })
-      }
-
-      router.push('/dashboard')
-    } catch (error) {
-      console.error('Google sign-in error:', error)
-      throw error
+    if (!userDoc.exists()) {
+      await setDoc(userDocRef, {
+        uid: googleUser.uid,
+        email: googleUser.email,
+        name: googleUser.displayName || 'New User',
+        userType: null,
+        ownerId: googleUser.uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
     }
+
+    router.push('/dashboard')
   }
 
   return (
