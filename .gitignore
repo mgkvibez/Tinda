@@ -10,3 +10,8 @@ yarn-debug.log*
 yarn-error.log*
 .vercel
 *.tsbuildinfo
+
+# Never commit service account keys
+*-firebase-adminsdk-*.json
+*service-account*.json
+*.p12
